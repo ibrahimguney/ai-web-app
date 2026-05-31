@@ -10,7 +10,8 @@ import { exec } from "child_process";
 import * as XLSX from "xlsx";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+const p = require("pdf-parse");
+const pdfParse = p.PDFParse || p;
 
 dotenv.config();
 
