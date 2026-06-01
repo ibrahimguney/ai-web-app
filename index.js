@@ -35,63 +35,274 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Predefined Sustainability Indicators (categorized for ease of use)
-const SUSTAINABILITY_INDICATORS = [
-  // Environmental Indicators
-  { code: "EN.ATM.CO2E.PC", name: "CO2 emissions (metric tons per capita)", category: "Environmental", description: "Carbon dioxide emissions from energy use, per person." },
-  { code: "EN.ATM.CO2E.KT", name: "CO2 emissions (kt)", category: "Environmental", description: "Total carbon dioxide emissions in kilotons." },
-  { code: "EN.ATM.GHGT.KT.CE", name: "Total greenhouse gas emissions (kt CO2 eq)", category: "Environmental", description: "Sum of all greenhouse gas emissions." },
-  { code: "EN.ATM.METH.KT.CE", name: "Methane emissions (kt CO2 eq)", category: "Environmental", description: "Methane emissions in carbon dioxide equivalent." },
-  { code: "EN.ATM.NOXE.KT.CE", name: "Nitrous oxide emissions (kt CO2 eq)", category: "Environmental", description: "Nitrous oxide emissions in carbon dioxide equivalent." },
-  { code: "EG.FEC.RNEW.ZS", name: "Renewable energy consumption (% of total final energy)", category: "Environmental", description: "Share of renewable energy in total final energy consumption." },
-  { code: "EG.ELC.RNEW.ZS", name: "Renewable electricity output (% of total electricity)", category: "Environmental", description: "Share of electricity produced from renewable sources." },
-  { code: "AG.LND.FRST.ZS", name: "Forest area (% of land area)", category: "Environmental", description: "Forest area is land under natural or planted stands of trees." },
-  { code: "EN.ATM.PM25.MC.M3", name: "PM2.5 air pollution, mean annual exposure (micrograms/m³)", category: "Environmental", description: "Population-weighted exposure to ambient PM2.5." },
-  { code: "EG.ELC.ACCS.ZS", name: "Access to electricity (% of population)", category: "Environmental", description: "Percentage of population with access to electricity." },
-  { code: "NY.GDP.TOTL.RT.ZS", name: "Total natural resources rents (% of GDP)", category: "Environmental", description: "Sum of oil rents, natural gas rents, coal rents, mineral rents, and forest rents." },
-  { code: "AG.LND.AGRI.ZS", name: "Agricultural land (% of land area)", category: "Environmental", description: "Share of land area that is arable, under permanent crops, or permanent pastures." },
-  { code: "ER.PTD.TOTL.GD.ZS", name: "Terrestrial & marine protected areas (% of total area)", category: "Environmental", description: "Percentage of territorial area that is nationally protected." },
-  { code: "EG.USE.COMM.GD.PP.KD", name: "Energy use (kg oil equivalent per capita)", category: "Environmental", description: "Energy use per person, measured in kg of oil equivalent." },
-  { code: "EG.ELC.COAL.ZS", name: "Electricity production from coal sources (% of total)", category: "Environmental", description: "Share of electricity generated using coal." },
+// JSON Database File Paths
+const usersFilePath = path.join(__dirname, "users.json");
+const indicatorsFilePath = path.join(__dirname, "indicators.json");
+const logsFilePath = path.join(__dirname, "activity_logs.json");
 
-  // Social Indicators
-  { code: "SP.DYN.LE00.IN", name: "Life expectancy at birth, total (years)", category: "Social", description: "Number of years a newborn infant would live if prevailing patterns of mortality at the time of its birth were to stay the same." },
-  { code: "SH.DYN.MORT", name: "Mortality rate, under-5 (per 1,000 live births)", category: "Social", description: "Probability of dying between birth and exactly five years of age per 1,000 live births." },
-  { code: "SH.H2O.SMGW.ZS", name: "People using safely managed drinking water (% of population)", category: "Social", description: "Percentage of people using drinking water from an improved source that is accessible on premises, available when needed and free from contamination." },
-  { code: "SH.STA.SMTC.ZS", name: "People using safely managed sanitation (% of population)", category: "Social", description: "Percentage of people using improved sanitation facilities that are not shared with other households and where excreta are safely disposed of in situ or transported and treated off-site." },
-  { code: "SE.PRM.ENRR", name: "School enrollment, primary (% gross)", category: "Social", description: "Total enrollment in primary education, regardless of age, expressed as a percentage of the population of official primary education age." },
-  { code: "SE.SEC.ENRR", name: "School enrollment, secondary (% gross)", category: "Social", description: "Total enrollment in secondary education, regardless of age." },
-  { code: "SE.TER.ENRR", name: "School enrollment, tertiary (% gross)", category: "Social", description: "Total enrollment in tertiary education, regardless of age." },
-  { code: "SE.ADT.LITR.ZS", name: "Literacy rate, adult total (% of people ages 15+)", category: "Social", description: "Percentage of people aged 15 and above who can both read and write with understanding a short simple statement about their everyday life." },
-  { code: "SL.UEM.TOTL.ZS", name: "Unemployment, total (% of total labor force)", category: "Social", description: "Share of the labor force that is without work but available for and seeking employment." },
-  { code: "SL.TLF.CACT.FE.ZS", name: "Labor force participation rate, female (% of female pop 15+)", category: "Social", description: "Percentage of female population aged 15 and older that is economically active." },
-  { code: "SI.POV.GINI", name: "Gini index (World Bank estimate)", category: "Social", description: "Gini index measures the extent to which the distribution of income among individuals or households within an economy deviates from a perfectly equal distribution." },
-  { code: "SI.POV.NAHC", name: "Poverty headcount ratio at national poverty lines (% of pop)", category: "Social", description: "Percentage of the population living below the national poverty line." },
-  { code: "EG.CFT.ACCS.ZS", name: "Access to clean fuels and cooking technologies (% of pop)", category: "Social", description: "Percentage of population with primary reliance on clean fuels and technology for cooking." },
-  { code: "IQ.CPA.GEND.XQ", name: "CPIA gender equality rating (1=low to 6=high)", category: "Social", description: "Measures the extent to which the country has installed institutions and programs to promote gender equality." },
+// Helper function to read/write JSON files
+const readJsonFile = (filePath, defaultValue = []) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, JSON.stringify(defaultValue, null, 2), "utf8");
+      return defaultValue;
+    }
+    const data = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(data);
+  } catch (err) {
+    console.error(`Error reading file ${filePath}:`, err);
+    return defaultValue;
+  }
+};
 
-  // Economic & Governance Indicators
-  { code: "NY.GDP.MKTP.KD.ZG", name: "GDP growth (annual %)", category: "Economic & Governance", description: "Annual percentage growth rate of GDP at market prices based on constant local currency." },
-  { code: "NY.GDP.PCAP.KD", name: "GDP per capita (constant 2015 US$)", category: "Economic & Governance", description: "GDP per capita is gross domestic product divided by midyear population, in constant 2015 dollars." },
-  { code: "FP.CPI.TOTL.ZG", name: "Inflation, consumer prices (annual %)", category: "Economic & Governance", description: "Annual percentage change in the cost to the average consumer of acquiring a basket of goods and services." },
-  { code: "NV.IND.TOTL.ZS", name: "Industry, value added (% of GDP)", category: "Economic & Governance", description: "Net output of industry (mining, manufacturing, construction, electricity, water, gas) divided by GDP." },
-  { code: "NV.SRV.TOTL.ZS", name: "Services, value added (% of GDP)", category: "Economic & Governance", description: "Net output of services sector divided by GDP." },
-  { code: "NV.AGR.TOTL.ZS", name: "Agriculture, forestry, and fishing, value added (% of GDP)", category: "Economic & Governance", description: "Net output of agriculture sector divided by GDP." },
-  { code: "BX.KLT.DINV.WD.GD.ZS", name: "Foreign direct investment, net inflows (% of GDP)", category: "Economic & Governance", description: "Net inflows of investment to acquire a lasting management interest in an enterprise operating in an economy other than that of the investor." },
-  { code: "GB.XPD.RSDV.GD.ZS", name: "Research and development expenditure (% of GDP)", category: "Economic & Governance", description: "Gross domestic expenditure on R&D as a percentage of GDP." },
-  { code: "TX.VAL.TECH.MF.ZS", name: "High-technology exports (% of manufactured exports)", category: "Economic & Governance", description: "Products with high R&D intensity, such as in aerospace, computers, pharmaceuticals, scientific instruments, and electrical machinery." },
-  { code: "IP.PAT.RESD", name: "Patent applications, residents", category: "Economic & Governance", description: "Patent applications filed by residents of the country." },
-  { code: "MS.MIL.XPND.GD.ZS", name: "Military expenditure (% of GDP)", category: "Economic & Governance", description: "Military expenditures as a percentage of GDP." },
-  { code: "SE.XPD.TOTL.GD.ZS", name: "Government expenditure on education, total (% of GDP)", category: "Economic & Governance", description: "Total public expenditure on education (current and capital) expressed as a percentage of GDP." }
-];
+const writeJsonFile = (filePath, data) => {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+  } catch (err) {
+    console.error(`Error writing file ${filePath}:`, err);
+  }
+};
 
-// Endpoint: Get sustainability indicators metadata
-app.get("/api/indicators", (req, res) => {
-  res.json(SUSTAINABILITY_INDICATORS);
+// Activity logging helper
+const logActivity = (user, actionType, description) => {
+  const logs = readJsonFile(logsFilePath, []);
+  const newLog = {
+    id: "log_" + Math.random().toString(36).substring(2, 11),
+    timestamp: new Date().toISOString(),
+    userEmail: user ? user.email : "anonymous",
+    userRole: user ? user.role : "none",
+    actionType,
+    description
+  };
+  logs.unshift(newLog);
+  writeJsonFile(logsFilePath, logs.slice(0, 100)); // Limit to last 100 logs
+};
+
+// Authentication & Authorization Middleware
+const authenticateUser = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader) {
+    req.user = null;
+    return next();
+  }
+
+  // Token format: Bearer <userID>
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  const users = readJsonFile(usersFilePath, []);
+  const user = users.find(u => u.id === token);
+  if (user) {
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    };
+  } else {
+    req.user = null;
+  }
+  next();
+};
+
+const requireRole = (roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Oturum açmanız gerekmektedir." });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Bu işlemi gerçekleştirmek için yetkiniz yetersizdir." });
+    }
+    next();
+  };
+};
+
+// --- AUTHENTICATION ENDPOINTS ---
+
+// User Registration
+app.post("/api/auth/register", (req, res) => {
+  const { email, password, role } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "E-posta ve şifre alanları zorunludur." });
+  }
+
+  const users = readJsonFile(usersFilePath, []);
+  if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+    return res.status(400).json({ error: "Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut." });
+  }
+
+  const newUser = {
+    id: "u_" + Math.random().toString(36).substring(2, 11),
+    email,
+    password, // Plain text for sandbox simplicity
+    role: role || "viewer", // Default role is viewer
+    createdAt: new Date().toISOString()
+  };
+
+  users.push(newUser);
+  writeJsonFile(usersFilePath, users);
+
+  logActivity(newUser, "Kayıt", "Yeni kullanıcı kaydı oluşturuldu.");
+
+  res.status(201).json({
+    id: newUser.id,
+    email: newUser.email,
+    role: newUser.role
+  });
 });
 
+// User Login
+app.post("/api/auth/login", (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "E-posta ve şifre alanları zorunludur." });
+  }
+
+  const users = readJsonFile(usersFilePath, []);
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+
+  if (!user) {
+    return res.status(401).json({ error: "Hatalı e-posta veya şifre girdiniz." });
+  }
+
+  logActivity(user, "Giriş", "Kullanıcı sisteme giriş yaptı.");
+
+  res.json({
+    token: user.id,
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    }
+  });
+});
+
+// --- INDICATOR ENDPOINTS ---
+
+// Get sustainability indicators metadata
+app.get("/api/indicators", (req, res) => {
+  const indicators = readJsonFile(indicatorsFilePath, []);
+  res.json(indicators);
+});
+
+// Admin: Add new indicator
+app.post("/api/indicators", authenticateUser, requireRole(["admin"]), (req, res) => {
+  const { code, name, category, description } = req.body;
+  if (!code || !name || !category) {
+    return res.status(400).json({ error: "Gösterge kodu, adı ve kategorisi zorunludur." });
+  }
+
+  const indicators = readJsonFile(indicatorsFilePath, []);
+  if (indicators.some(i => i.code.toLowerCase() === code.toLowerCase())) {
+    return res.status(400).json({ error: "Bu gösterge kodu zaten mevcut." });
+  }
+
+  const newIndicator = { code, name, category, description: description || "" };
+  indicators.push(newIndicator);
+  writeJsonFile(indicatorsFilePath, indicators);
+
+  logActivity(req.user, "Gösterge Ekleme", `Yeni ESG göstergesi eklendi: ${code} - ${name}`);
+
+  res.status(201).json(newIndicator);
+});
+
+// Admin: Delete an indicator
+app.delete("/api/indicators/:code", authenticateUser, requireRole(["admin"]), (req, res) => {
+  const { code } = req.params;
+  const indicators = readJsonFile(indicatorsFilePath, []);
+  
+  const initialLength = indicators.length;
+  const filtered = indicators.filter(i => i.code.toLowerCase() !== code.toLowerCase());
+
+  if (filtered.length === initialLength) {
+    return res.status(404).json({ error: "Gösterge bulunamadı." });
+  }
+
+  writeJsonFile(indicatorsFilePath, filtered);
+
+  logActivity(req.user, "Gösterge Silme", `Gösterge sistemden silindi: ${code}`);
+
+  res.json({ message: "Gösterge başarıyla silindi." });
+});
+
+// --- ADMIN MANAGEMENT ENDPOINTS ---
+
+// Admin: List all users
+app.get("/api/admin/users", authenticateUser, requireRole(["admin"]), (req, res) => {
+  const users = readJsonFile(usersFilePath, []);
+  const sanitizedUsers = users.map(u => ({
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    createdAt: u.createdAt
+  }));
+  res.json(sanitizedUsers);
+});
+
+// Admin: Update user role
+app.put("/api/admin/users/:id/role", authenticateUser, requireRole(["admin"]), (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  if (!["admin", "user", "viewer"].includes(role)) {
+    return res.status(400).json({ error: "Geçersiz rol tanımlandı." });
+  }
+
+  const users = readJsonFile(usersFilePath, []);
+  const userIndex = users.findIndex(u => u.id === id);
+
+  if (userIndex === -1) {
+    return res.status(404).json({ error: "Kullanıcı bulunamadı." });
+  }
+
+  if (users[userIndex].id === req.user.id && role !== "admin") {
+    return res.status(400).json({ error: "Kendi yöneticilik yetkinizi kaldıramazsınız." });
+  }
+
+  const oldRole = users[userIndex].role;
+  users[userIndex].role = role;
+  writeJsonFile(usersFilePath, users);
+
+  logActivity(req.user, "Rol Güncelleme", `Kullanıcı (${users[userIndex].email}) rolü değiştirildi: ${oldRole} -> ${role}`);
+
+  res.json({ id: users[userIndex].id, email: users[userIndex].email, role: users[userIndex].role });
+});
+
+// Admin: Delete user
+app.delete("/api/admin/users/:id", authenticateUser, requireRole(["admin"]), (req, res) => {
+  const { id } = req.params;
+  const users = readJsonFile(usersFilePath, []);
+
+  const userIndex = users.findIndex(u => u.id === id);
+  if (userIndex === -1) {
+    return res.status(404).json({ error: "Kullanıcı bulunamadı." });
+  }
+
+  if (users[userIndex].id === req.user.id) {
+    return res.status(400).json({ error: "Kendi hesabınızı silemezsiniz." });
+  }
+
+  const deletedUser = users[userIndex];
+  users.splice(userIndex, 1);
+  writeJsonFile(usersFilePath, users);
+
+  logActivity(req.user, "Kullanıcı Silme", `Kullanıcı hesabı silindi: ${deletedUser.email}`);
+
+  res.json({ message: "Kullanıcı başarıyla silindi." });
+});
+
+// Admin: Get usage/activity logs
+app.get("/api/admin/logs", authenticateUser, requireRole(["admin"]), (req, res) => {
+  const logs = readJsonFile(logsFilePath, []);
+  res.json(logs);
+});
+
+// --- CORE FUNCTIONAL ENDPOINTS (SECURED) ---
+
 // Endpoint: Export sustainability data to Excel, SPSS, or STATA
-app.post("/api/export", async (req, res) => {
+app.post("/api/export", authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
   try {
     const { data, format } = req.body;
 
@@ -100,6 +311,9 @@ app.post("/api/export", async (req, res) => {
     }
 
     const fileFormat = format ? format.toLowerCase() : "xlsx";
+
+    // Log the activity
+    logActivity(req.user, "Veri Aktarımı", `Veriler dışa aktarıldı. Format: ${fileFormat.toUpperCase()}, Boyut: ${data.length} satır`);
 
     // 1. Export to Excel (using JS directly)
     if (fileFormat === "xlsx") {
@@ -171,7 +385,7 @@ app.post("/api/export", async (req, res) => {
 });
 
 // Endpoint: Extract sustainability indicators from PDF/Text reports using LLM
-app.post("/api/extract", upload.single("reportFile"), async (req, res) => {
+app.post("/api/extract", upload.single("reportFile"), authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
   try {
     let reportText = "";
 
@@ -199,11 +413,14 @@ app.post("/api/extract", upload.single("reportFile"), async (req, res) => {
       return res.status(400).json({ error: "Empty report content." });
     }
 
-    // Truncate to save token limits if extremely large (e.g. 150k characters is ~35k tokens, easily fits in gpt-4o-mini / gemini)
+    // Truncate to save token limits if extremely large
     const maxChars = 200000;
     if (reportText.length > maxChars) {
       reportText = reportText.substring(0, maxChars) + "\n\n[TRUNCATED FOR LENGTH]";
     }
+
+    // Log the activity
+    logActivity(req.user, "Yapay Zeka Analizi", `ESG Analizcisi çalıştırıldı. Kaynak: ${req.file ? "PDF Dosyası (" + req.file.originalname + ")" : "Metin Alanı"}`);
 
     const customPrompt = req.body.prompt || `Aşağıdaki sürdürülebilirlik raporundan verileri ve ESG göstergelerini ayıkla.
 Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir şey yazma:
@@ -220,7 +437,7 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 
     // 2. Query OpenAI API
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Use gpt-4o-mini for fast, high context extraction
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -236,13 +453,12 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 
     let aiOutput = response.choices[0].message.content;
 
-    // Parse the JSON output. Sometime models wrap inside a root object even when asked for an array, or return markdown blocks.
+    // Parse the JSON output
     aiOutput = aiOutput.replace(/```json/g, "").replace(/```/g, "").trim();
     
     let resultJson;
     try {
       resultJson = JSON.parse(aiOutput);
-      // If the result has a root key (like "indicators" or "data"), try to extract the array
       if (!Array.isArray(resultJson)) {
         const keys = Object.keys(resultJson);
         for (const key of keys) {
@@ -266,9 +482,12 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 });
 
 // Endpoint: AI Assistant Chat
-app.post("/chat", async (req, res) => {
+app.post("/chat", authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
   try {
     const { message } = req.body;
+
+    // Log the activity
+    logActivity(req.user, "AI Chat", `Soru soruldu: "${message.substring(0, 40)}${message.length > 40 ? '...' : ''}"`);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -288,8 +507,8 @@ app.post("/chat", async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Sustainability AI Backend Running 🚀");
+  res.send("Sustainability AI Backend Running with Admin/User/Viewer Role Enforcements 🚀");
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

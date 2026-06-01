@@ -1,0 +1,18 @@
+[
+  {
+    "id": "log_fn6z7ealm",
+    "timestamp": "2026-06-01T01:25:57.313Z",
+    "userEmail": "ibrahimguney16@gmail.com",
+    "userRole": "viewer",
+    "actionType": "Giriş",
+    "description": "Kullanıcı sisteme giriş yaptı."
+  },
+  {
+    "id": "log_q03pjk9kw",
+    "timestamp": "2026-06-01T01:25:57.294Z",
+    "userEmail": "ibrahimguney16@gmail.com",
+    "userRole": "viewer",
+    "actionType": "Kayıt",
+    "description": "Yeni kullanıcı kaydı oluşturuldu."
+  }
+]

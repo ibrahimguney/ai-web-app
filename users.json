@@ -1,0 +1,30 @@
+[
+  {
+    "id": "u-admin",
+    "email": "admin@sustaindata.com",
+    "password": "admin123",
+    "role": "admin",
+    "createdAt": "2026-06-01T00:00:00.000Z"
+  },
+  {
+    "id": "u-user",
+    "email": "user@sustaindata.com",
+    "password": "user123",
+    "role": "user",
+    "createdAt": "2026-06-01T00:00:00.000Z"
+  },
+  {
+    "id": "u-viewer",
+    "email": "viewer@sustaindata.com",
+    "password": "viewer123",
+    "role": "viewer",
+    "createdAt": "2026-06-01T00:00:00.000Z"
+  },
+  {
+    "id": "u_27glgncd4",
+    "email": "ibrahimguney16@gmail.com",
+    "password": "Qw838590!",
+    "role": "viewer",
+    "createdAt": "2026-06-01T01:25:57.291Z"
+  }
+]
