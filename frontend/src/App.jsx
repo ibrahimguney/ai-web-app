@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Download, 
   Upload, 
@@ -12,7 +12,6 @@ import {
   Settings, 
   AlertCircle,
   Search,
-  User,
   LogOut,
   Trash2,
   Plus
@@ -65,7 +64,6 @@ export default function App() {
   // Metadata
   const [indicators, setIndicators] = useState([]);
   const [countries, setCountries] = useState(COMMON_COUNTRIES);
-  const [loadingMetadata, setLoadingMetadata] = useState(true);
 
   // Selector selections for World Bank
   const [selectedCountries, setSelectedCountries] = useState(["TUR", "USA", "DEU"]);
@@ -132,7 +130,6 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
   // Fetch Metadata (indicators from backend, countries from World Bank)
   useEffect(() => {
     async function loadMetadata() {
-      setLoadingMetadata(true);
       try {
         // 1. Fetch Indicators from backend
         const indResponse = await fetch(`${API_URL}/api/indicators`);
@@ -158,15 +155,13 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
         }
       } catch (err) {
         console.error("Metadata yükleme hatası (fallback kullanılıyor):", err);
-      } finally {
-        setLoadingMetadata(false);
       }
     }
     loadMetadata();
   }, []);
 
   // Fetch Admin Data
-  const fetchAdminUsers = async () => {
+  const fetchAdminUsers = useCallback(async () => {
     if (!currentUser || currentUser.user.role !== "admin") return;
     setAdminLoading(true);
     setAdminError("");
@@ -182,9 +177,9 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
     } finally {
       setAdminLoading(false);
     }
-  };
+  }, [currentUser]);
 
-  const fetchAdminLogs = async () => {
+  const fetchAdminLogs = useCallback(async () => {
     if (!currentUser || currentUser.user.role !== "admin") return;
     setAdminLoading(true);
     setAdminError("");
@@ -200,18 +195,24 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
     } finally {
       setAdminLoading(false);
     }
-  };
+  }, [currentUser]);
 
   // Trigger Admin data fetches on admin view subtab switch
   useEffect(() => {
     if (activeTab === "admin" && currentUser?.user?.role === "admin") {
       if (adminTab === "users") {
-        fetchAdminUsers();
+        const timer = setTimeout(() => {
+          fetchAdminUsers();
+        }, 0);
+        return () => clearTimeout(timer);
       } else if (adminTab === "logs") {
-        fetchAdminLogs();
+        const timer = setTimeout(() => {
+          fetchAdminLogs();
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
-  }, [activeTab, adminTab]);
+  }, [activeTab, adminTab, currentUser, fetchAdminUsers, fetchAdminLogs]);
 
   // Auth Submit Handlers
   const handleLogin = async (e, quickEmail, quickPassword) => {

@@ -1,5 +1,13 @@
 [
   {
+    "id": "log_mjxpupbl3",
+    "timestamp": "2026-06-01T02:21:12.561Z",
+    "userEmail": "admin@sustaindata.com",
+    "userRole": "admin",
+    "actionType": "Giriş",
+    "description": "Kullanıcı sisteme giriş yaptı."
+  },
+  {
     "id": "log_fn6z7ealm",
     "timestamp": "2026-06-01T01:25:57.313Z",
     "userEmail": "ibrahimguney16@gmail.com",
