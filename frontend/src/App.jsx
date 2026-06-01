@@ -678,12 +678,6 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
           <div className="quick-login-section">
             <p className="quick-login-title">Hızlı Test Hesapları</p>
             <div className="quick-login-grid">
-              <div className="quick-card admin" onClick={(e) => handleLogin(e, "admin@sustaindata.com", "admin123")}>
-                <div className="quick-role badge badge-gov">Admin</div>
-                <div className="quick-email">admin@sustaindata.com</div>
-                <div className="quick-desc">Tam yetki, veri yönetimi ve log denetimi. (Şifre: admin123)</div>
-              </div>
-              
               <div className="quick-card user" onClick={(e) => handleLogin(e, "user@sustaindata.com", "user123")}>
                 <div className="quick-role badge badge-soc">User</div>
                 <div className="quick-email">user@sustaindata.com</div>
