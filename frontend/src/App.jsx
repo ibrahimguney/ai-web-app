@@ -1507,3 +1507,31 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
                                       : "badge-gov"
                                 }`}>
                                   {row.category || "General"}
+                                </span>
+                              </td>
+                              <td>{row.indicator}</td>
+                              <td style={{ fontWeight: 600 }}>{row.value !== undefined && row.value !== null ? row.value : "-"}</td>
+                              <td>{row.unit || "-"}</td>
+                              <td>{row.year || "-"}</td>
+                              <td style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>{row.evidence_sentence || row.context || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-center" style={{ height: "200px" }}>
+                     <p style={{ color: "var(--text-muted)" }}>Henüz çıkarılmış veri yok.</p>
+                  </div>
+                )}
+              </section>
+            </div>
+          )
+        )}
+      </main>
+    </>
+  );
+}
+
+export default App;
