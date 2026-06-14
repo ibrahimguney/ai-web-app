@@ -122,7 +122,8 @@ const requireRole = (roles) => {
 
 // User Registration
 app.post("/api/auth/register", (req, res) => {
-  const { email, password, role } = req.body;
+  // role parametresini req.body'den çıkartıyoruz, dışarıdan alınmasını engelliyoruz
+  const { email, password } = req.body; 
   if (!email || !password) {
     return res.status(400).json({ error: "E-posta ve şifre alanları zorunludur." });
   }
@@ -135,8 +136,8 @@ app.post("/api/auth/register", (req, res) => {
   const newUser = {
     id: "u_" + Math.random().toString(36).substring(2, 11),
     email,
-    password, // Plain text for sandbox simplicity
-    role: role || "viewer", // Default role is viewer
+    password, 
+    role: "viewer", // DIŞARIDAN NE GELİRSE GELSİN, VARSAYILAN OLARAK "viewer" YAPIYORUZ
     createdAt: new Date().toISOString()
   };
 
