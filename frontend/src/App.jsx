@@ -99,18 +99,33 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 {
   "indicators": [
     {
+      "company": "Şirket Adı",
+      "year": 2024,
       "indicator": "Gösterge Adı (örn. Kapsam 1 Emisyonları)",
       "category": "Environmental | Social | Governance",
-      "value": 12500, // Sayısal değer (varsa, sayı olarak)
-      "unit": "ton CO2e", // Birim
-      "year": 2023, // Hangi yıla ait olduğu
-      "context": "Metindeki ilgili cümle veya bağlam"
+      "value": 12500,
+      "unit": "ton CO2e",
+      "evidence_sentence": "Metindeki ilgili cümle veya bağlam",
+      "page_no": 12,
+      "source_url": "Raporun kaynağı veya URL'si",
+      "confidence": 95,
+      "manual_check": false,
+      "is_vague": false,
+      "gri_tcfd_alignment": "GRI 305-1"
     }
   ]
 }`);
   const [extractedData, setExtractedData] = useState([]);
   const [extracting, setExtracting] = useState(false);
   const [extractorError, setExtractorError] = useState(null);
+
+  // ML States
+  const [mlModelType, setMlModelType] = useState("xgboost");
+  const [mlTarget, setMlTarget] = useState("GreenwashingRisk");
+  const [mlFeatures, setMlFeatures] = useState("");
+  const [mlResult, setMlResult] = useState(null);
+  const [mlLoading, setMlLoading] = useState(false);
+  const [mlError, setMlError] = useState(null);
 
   // Dropdown UI states
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
@@ -548,6 +563,44 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
     }
   };
 
+  // Run ML Analytics
+  const handleRunML = async () => {
+    if (!extractedData || extractedData.length === 0) {
+      setMlError("Lütfen önce AI Rapor Analizcisi ile veri ayıklayın.");
+      return;
+    }
+    setMlLoading(true);
+    setMlError(null);
+    setMlResult(null);
+
+    try {
+      const featuresArr = mlFeatures.split(",").map(s => s.trim()).filter(s => s);
+      const response = await fetch(`${API_URL}/api/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          data: extractedData,
+          model_type: mlModelType,
+          target: mlTarget,
+          features: featuresArr.length > 0 ? featuresArr : ["value"]
+        })
+      });
+
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "Makine Öğrenmesi modeli çalıştırılamadı.");
+
+      setMlResult(json);
+    } catch (err) {
+      console.error(err);
+      setMlError(err.message);
+    } finally {
+      setMlLoading(false);
+    }
+  };
+
   // Helper toggle selected items
   const toggleCountry = (code) => {
     if (selectedCountries.includes(code)) {
@@ -730,6 +783,13 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
           >
             <Sparkles size={18} />
             Yapay Zeka Rapor Analizcisi (LLM)
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === "ml" ? "active" : ""}`}
+            onClick={() => setActiveTab("ml")}
+          >
+            <BarChart2 size={18} />
+            Makine Öğrenmesi (ML)
           </button>
           {currentUser.user.role === "admin" && (
             <button 
@@ -1121,6 +1181,46 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
         )}
 
         {/* TAB 2: AI Report Extractor */}
+        {activeTab === "ml" && (
+           <div className="dashboard-grid">
+               <aside className="glass-card vertical-gap-lg">
+                   <h3 style={{ color: "var(--text-primary)" }}>İleri Düzey Veri Analitiği (ML)</h3>
+                   <hr style={{ borderColor: "var(--border-color)", borderStyle: "solid", borderWidth: "0 0 1px 0", marginBottom: "16px" }} />
+                   <div>
+                       <span className="label">Model Tipi</span>
+                       <select className="input-field" value={mlModelType} onChange={(e) => setMlModelType(e.target.value)}>
+                           <option value="xgboost">XGBoost Sınıflandırma/Regresyon</option>
+                           <option value="lstm">LSTM (Zaman Serisi)</option>
+                           <option value="panel">Panel Veri Analizi</option>
+                       </select>
+                   </div>
+                   <div>
+                       <span className="label">Hedef Değişken (Örn: value)</span>
+                       <input type="text" className="input-field" value={mlTarget} onChange={(e) => setMlTarget(e.target.value)} placeholder="Bağımlı değişken" />
+                   </div>
+                   <div>
+                       <span className="label">Girdi Değişkenleri (Virgülle ayırın)</span>
+                       <input type="text" className="input-field" value={mlFeatures} onChange={(e) => setMlFeatures(e.target.value)} placeholder="Örn: confidence, page_no" />
+                   </div>
+                   <button className="btn btn-primary" onClick={handleRunML} disabled={mlLoading}>
+                       {mlLoading ? "Model Eğitiliyor..." : "Modeli Çalıştır"}
+                   </button>
+               </aside>
+               <section className="glass-card active-border">
+                   <h2>Analiz Sonuçları</h2>
+                   {mlLoading && <p>Python makine öğrenmesi kütüphaneleri arka planda çalıştırılıyor...</p>}
+                   {mlError && <p style={{ color: "var(--danger)" }}>Hata: {mlError}</p>}
+                   {mlResult && !mlLoading && (
+                       <pre style={{ background: "rgba(0,0,0,0.5)", padding: "16px", borderRadius: "8px", color: "var(--primary)", overflowX: "auto" }}>
+                           {JSON.stringify(mlResult, null, 2)}
+                       </pre>
+                   )}
+                   {!mlLoading && !mlResult && !mlError && <p style={{ color: "var(--text-muted)" }}>Modeli sol taraftaki panelden ayarlayıp çalıştırabilirsiniz.</p>}
+               </section>
+           </div>
+        )}
+
+        {/* TAB 3: AI Report Extractor */}
         {activeTab === "analyzer" && (
           currentUser.user.role === "viewer" ? (
             <div className="flex-center glass-card active-border" style={{ height: "450px", flexDirection: "column", gap: "20px", padding: "40px", textAlign: "center" }}>
@@ -1219,12 +1319,19 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 {
   "indicators": [
     {
+      "company": "Şirket Adı",
+      "year": 2024,
       "indicator": "Gösterge Adı (örn. Kapsam 1 Emisyonları)",
       "category": "Environmental | Social | Governance",
-      "value": 12500, // Sayısal değer (varsa, sayı olarak)
-      "unit": "ton CO2e", // Birim
-      "year": 2023, // Hangi yıla ait olduğu
-      "context": "Metindeki ilgili cümle veya bağlam"
+      "value": 12500,
+      "unit": "ton CO2e",
+      "evidence_sentence": "Metindeki ilgili cümle veya bağlam",
+      "page_no": 12,
+      "source_url": "Raporun kaynağı veya URL'si",
+      "confidence": 95,
+      "manual_check": false,
+      "is_vague": false,
+      "gri_tcfd_alignment": "GRI 305-1"
     }
   ]
 }`)}>Sıfırla</span>

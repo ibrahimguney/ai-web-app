@@ -424,16 +424,25 @@ app.post("/api/extract", upload.single("reportFile"), authenticateUser, requireR
 
     const customPrompt = req.body.prompt || `Aşağıdaki sürdürülebilirlik raporundan verileri ve ESG göstergelerini ayıkla.
 Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir şey yazma:
-[
-  {
-    "indicator": "Gösterge Adı (örn. Kapsam 1 Emisyonları)",
-    "category": "Environmental | Social | Governance",
-    "value": 12500, // Sayısal değer (varsa, sayı olarak)
-    "unit": "ton CO2e", // Birim
-    "year": 2023, // Hangi yıla ait olduğu
-    "context": "Metindeki ilgili cümle veya bağlam"
-  }
-]`;
+{
+  "indicators": [
+    {
+      "company": "Şirket Adı",
+      "year": 2024,
+      "indicator": "Gösterge Adı (örn. Kapsam 1 Emisyonları)",
+      "category": "Environmental | Social | Governance",
+      "value": 12500,
+      "unit": "ton CO2e",
+      "evidence_sentence": "Metindeki ilgili cümle veya bağlam",
+      "page_no": 12,
+      "source_url": "Raporun kaynağı veya URL'si",
+      "confidence": 95,
+      "manual_check": false,
+      "is_vague": false,
+      "gri_tcfd_alignment": "GRI 305-1"
+    }
+  ]
+}`;
 
     // 2. Query OpenAI API
     const response = await openai.chat.completions.create({
@@ -441,7 +450,7 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
       messages: [
         {
           role: "system",
-          content: "You are an expert ESG (Environmental, Social, Governance) analyst. Extract all quantitative indicators from reports. Always return your response in a valid JSON array format containing the objects as requested, and nothing else.",
+          content: "You are an expert ESG (Environmental, Social, Governance) analyst. Extract all quantitative indicators from reports. Always return your response in a valid JSON object format containing an 'indicators' array, and nothing else.",
         },
         {
           role: "user",
@@ -500,6 +509,63 @@ app.post("/chat", authenticateUser, requireRole(["admin", "user"]), async (req, 
     const aiText = response.choices[0].message.content;
 
     res.json({ answer: aiText });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint: Advanced ML Analytics
+app.post("/api/analyze", authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
+  try {
+    const { data, model_type, target, features } = req.body;
+
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({ error: "Eksik veya geçersiz veri." });
+    }
+    if (!model_type || !target || !features || !Array.isArray(features)) {
+      return res.status(400).json({ error: "Model yapılandırması eksik (model_type, target, features)." });
+    }
+
+    logActivity(req.user, "İleri Düzey Analiz", `${model_type.toUpperCase()} modeli çalıştırıldı. Hedef: ${target}`);
+
+    const tempId = Math.random().toString(36).substring(7);
+    const configPath = path.join(__dirname, `temp_config_${tempId}.json`);
+    const outputPath = path.join(__dirname, `temp_output_${tempId}.json`);
+
+    const config = { data, model_type, target, features };
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+
+    const cmd = `python analyze.py "${configPath}" "${outputPath}"`;
+    
+    exec(cmd, (error, stdout, stderr) => {
+      // Clean up config file
+      if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
+
+      if (error) {
+        console.error("Python exec error:", error);
+        console.error("Python stderr:", stderr);
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        return res.status(500).json({ error: "Analiz sırasında Python hatası oluştu.", details: stderr });
+      }
+
+      if (!fs.existsSync(outputPath)) {
+        return res.status(500).json({ error: "Analiz sonucu oluşturulamadı." });
+      }
+
+      try {
+        const resultData = JSON.parse(fs.readFileSync(outputPath, "utf-8"));
+        fs.unlinkSync(outputPath); // Clean up output file
+        
+        if (resultData.error) {
+           return res.status(400).json({ error: resultData.error, details: resultData.traceback });
+        }
+        res.json(resultData);
+      } catch (parseErr) {
+        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        res.status(500).json({ error: "Python çıktı formatı okunamadı.", details: parseErr.message });
+      }
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
