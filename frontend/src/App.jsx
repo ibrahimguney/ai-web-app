@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { 
   Download, 
   Upload, 
@@ -131,6 +131,26 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
   // Dropdown UI states
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showIndicatorDropdown, setShowIndicatorDropdown] = useState(false);
+
+  // Refs for closing dropdowns
+  const countryDropdownRef = useRef(null);
+  const indicatorDropdownRef = useRef(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
+        setShowCountryDropdown(false);
+      }
+      if (indicatorDropdownRef.current && !indicatorDropdownRef.current.contains(event.target)) {
+        setShowIndicatorDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Admin Dashboard States
   const [adminTab, setAdminTab] = useState("users"); // 'users', 'indicators', 'logs'
@@ -1056,7 +1076,7 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
               </div>
 
               {/* Country Selector */}
-              <div style={{ position: "relative" }}>
+              <div style={{ position: "relative" }} ref={countryDropdownRef}>
                 <span className="label">1. ÜLKELER ({selectedCountries.length} Seçili)</span>
                 <button 
                   className="input-field flex-between"
@@ -1102,12 +1122,21 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
                         <div style={{ padding: "10px", textAlign: "center", color: "var(--text-muted)" }}>Sonuç bulunamadı</div>
                       )}
                     </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ padding: "6px 16px", fontSize: "0.8rem", width: "100%" }}
+                        onClick={() => setShowCountryDropdown(false)}
+                      >
+                        Tamam
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
               {/* Indicator Selector */}
-              <div style={{ position: "relative" }}>
+              <div style={{ position: "relative" }} ref={indicatorDropdownRef}>
                 <span className="label">2. SÜRDÜRÜLEBİLİRLİK DEĞİŞKENLERİ ({selectedIndicators.length} Seçili)</span>
                 <button 
                   className="input-field flex-between"
@@ -1176,6 +1205,15 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
                       {filteredIndicators.length === 0 && (
                         <div style={{ padding: "10px", textAlign: "center", color: "var(--text-muted)" }}>Sonuç bulunamadı</div>
                       )}
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ padding: "6px 16px", fontSize: "0.8rem", width: "100%" }}
+                        onClick={() => setShowIndicatorDropdown(false)}
+                      >
+                        Tamam
+                      </button>
                     </div>
                   </div>
                 )}
