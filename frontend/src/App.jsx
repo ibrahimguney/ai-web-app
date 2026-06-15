@@ -1533,5 +1533,3 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
     </>
   );
 }
-
-export default App;
