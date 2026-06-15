@@ -784,12 +784,18 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
         return;
       }
       sourceData = extractedData;
-    } else {
+    } else if (mlDataSource === "n8n") {
       if (!n8nChecks || n8nChecks.length === 0) {
         setMlError("Lütfen önce n8n Rapor Takipçisi ile internetten veri çekilmesini sağlayın veya veritabanını kontrol edin.");
         return;
       }
       sourceData = n8nChecks;
+    } else if (mlDataSource === "macro") {
+      if (!fetchedData || fetchedData.length === 0) {
+        setMlError("Lütfen önce Makro Veri İndirici sekmesinden veri çekin ve önizleyin.");
+        return;
+      }
+      sourceData = fetchedData;
     }
     setMlLoading(true);
     setMlError(null);
@@ -797,7 +803,9 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 
     try {
       const featuresArr = mlFeatures.split(",").map(s => s.trim()).filter(s => s);
-      const defaultFeatures = mlDataSource === "extractor" ? ["value"] : ["report_year"];
+      const defaultFeatures = mlDataSource === "extractor" 
+        ? ["value"] 
+        : (mlDataSource === "n8n" ? ["report_year"] : ["Year"]);
       const response = await fetch(`${API_URL}/api/analyze`, {
         method: "POST",
         headers: {
@@ -1436,23 +1444,31 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
                <aside className="glass-card vertical-gap-lg">
                    <h3 style={{ color: "var(--text-primary)" }}>İleri Düzey Veri Analitiği (ML)</h3>
                    <hr style={{ borderColor: "var(--border-color)", borderStyle: "solid", borderWidth: "0 0 1px 0", marginBottom: "16px" }} />
-                   <div>
-                       <span className="label">Veri Kaynağı</span>
-                       <select className="input-field" value={mlDataSource} onChange={(e) => {
-                           const val = e.target.value;
-                           setMlDataSource(val);
-                           if (val === "n8n") {
-                             setMlTarget("validation_score");
-                             setMlFeatures("report_year");
-                           } else {
-                             setMlTarget("GreenwashingRisk");
-                             setMlFeatures("confidence, page_no");
-                           }
-                       }}>
-                           <option value="extractor">AI Rapor Analizcisi Verileri (PDF/Metin)</option>
-                           <option value="n8n">n8n Web Tarayıcısı Verileri (İnternet)</option>
-                       </select>
-                   </div>
+                    <div>
+                        <span className="label">Veri Kaynağı</span>
+                        <select className="input-field" value={mlDataSource} onChange={(e) => {
+                            const val = e.target.value;
+                            setMlDataSource(val);
+                            if (val === "n8n") {
+                              setMlTarget("validation_score");
+                              setMlFeatures("report_year");
+                            } else if (val === "macro") {
+                              const firstInd = selectedIndicators.length > 0 
+                                ? (indicators.find(i => i.code === selectedIndicators[0])?.name || "value")
+                                : "value";
+                              setMlTarget(firstInd);
+                              const otherInds = selectedIndicators.slice(1).map(code => indicators.find(i => i.code === code)?.name).filter(n => n);
+                              setMlFeatures(otherInds.length > 0 ? otherInds.join(", ") : "Year");
+                            } else {
+                              setMlTarget("GreenwashingRisk");
+                              setMlFeatures("confidence, page_no");
+                            }
+                        }}>
+                            <option value="extractor">AI Rapor Analizcisi Verileri (PDF/Metin)</option>
+                            <option value="n8n">n8n Web Tarayıcısı Verileri (İnternet)</option>
+                            <option value="macro">Makro Veri İndiricisi Verileri (Dünya Bankası)</option>
+                        </select>
+                    </div>
                    <div>
                        <span className="label">Model Tipi</span>
                        <select className="input-field" value={mlModelType} onChange={(e) => setMlModelType(e.target.value)}>
