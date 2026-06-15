@@ -13,6 +13,11 @@ import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
+// Fallback to env.txt if variables are not in .env
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  dotenv.config({ path: "env.txt" });
+}
+
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
