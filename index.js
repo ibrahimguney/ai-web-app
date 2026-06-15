@@ -9,6 +9,17 @@ import { fileURLToPath } from "url";
 import { exec } from "child_process";
 import * as XLSX from "xlsx";
 import * as pdfParseModule from "pdf-parse";
+import { createClient } from "@supabase/supabase-js";
+
+dotenv.config();
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabase = null;
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey);
+}
 
 // Helper function to parse PDF buffer supporting both pdf-parse 1.x.x and 2.x.x
 async function parsePdfBuffer(dataBuffer) {
@@ -27,7 +38,7 @@ async function parsePdfBuffer(dataBuffer) {
   }
 }
 
-dotenv.config();
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -583,6 +594,102 @@ app.post("/api/analyze", authenticateUser, requireRole(["admin", "user"]), async
     });
 
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- n8n BIST REPORT TRACKER ENDPOINTS ---
+
+// Get n8n report sources
+app.get("/api/n8n/sources", authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ error: "Supabase bağlantısı yapılandırılmamış. Lütfen çevre değişkenlerini kontrol edin." });
+    }
+    const { data, error } = await supabase
+      .from("report_sources")
+      .select("*")
+      .order("created_at", { ascending: false });
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error("Sources fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add n8n report source
+app.post("/api/n8n/sources", authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ error: "Supabase bağlantısı yapılandırılmamış." });
+    }
+    const { company_name, ticker, report_year, source_type, source_url } = req.body;
+    if (!company_name || !source_url) {
+      return res.status(400).json({ error: "Şirket adı ve kaynak URL alanları zorunludur." });
+    }
+    const { data, error } = await supabase
+      .from("report_sources")
+      .insert([
+        { 
+          company_name, 
+          ticker: ticker || "", 
+          report_year: report_year || "2024", 
+          source_type: source_type || "investor_relations_page",
+          is_active: true
+        }
+      ])
+      .select();
+    
+    if (error) throw error;
+    
+    logActivity(req.user, "n8n Kaynak Ekleme", `Yeni rapor takip kaynağı eklendi: ${company_name} (${ticker || "N/A"})`);
+    res.status(201).json(data[0]);
+  } catch (err) {
+    console.error("Source add error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete n8n report source
+app.delete("/api/n8n/sources/:id", authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ error: "Supabase bağlantısı yapılandırılmamış." });
+    }
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("report_sources")
+      .delete()
+      .eq("id", id)
+      .select();
+    
+    if (error) throw error;
+    
+    logActivity(req.user, "n8n Kaynak Silme", `Rapor takip kaynağı silindi (ID: ${id})`);
+    res.json({ message: "Kaynak başarıyla silindi.", data });
+  } catch (err) {
+    console.error("Source delete error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get n8n report link checks (crawl results)
+app.get("/api/n8n/checks", authenticateUser, requireRole(["admin", "user"]), async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ error: "Supabase bağlantısı yapılandırılmamış. Lütfen çevre değişkenlerini kontrol edin." });
+    }
+    const { data, error } = await supabase
+      .from("report_link_checks")
+      .select("*")
+      .order("checked_at", { ascending: false });
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error("Checks fetch error:", err);
     res.status(500).json({ error: err.message });
   }
 });
