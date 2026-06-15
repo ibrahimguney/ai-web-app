@@ -190,7 +190,7 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
       setAdminUsers(data);
     } catch (err) {
       setAdminError(err.message);
-    } fill_out_finally: {
+    } finally {
       setAdminLoading(false);
     }
   }, [currentUser]);
@@ -208,7 +208,7 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
       setAdminLogs(data);
     } catch (err) {
       setAdminError(err.message);
-    } fill_out_finally: {
+    } finally {
       setAdminLoading(false);
     }
   }, [currentUser]);

@@ -8,10 +8,24 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { exec } from "child_process";
 import * as XLSX from "xlsx";
-import pdfParseDefault from "pdf-parse";
+import * as pdfParseModule from "pdf-parse";
 
-// Safely resolve the default export in case of CommonJS/ESM interop issues
-const pdfParse = typeof pdfParseDefault === 'function' ? pdfParseDefault : (pdfParseDefault.default || pdfParseDefault);
+// Helper function to parse PDF buffer supporting both pdf-parse 1.x.x and 2.x.x
+async function parsePdfBuffer(dataBuffer) {
+  if (pdfParseModule && pdfParseModule.PDFParse) {
+    const parser = new pdfParseModule.PDFParse({ data: dataBuffer });
+    const pdfData = await parser.getText();
+    return pdfData;
+  } else {
+    const parseFunc = typeof pdfParseModule === 'function' 
+      ? pdfParseModule 
+      : (pdfParseModule.default || pdfParseModule);
+    if (typeof parseFunc !== 'function') {
+      throw new Error("pdf-parse library is not loaded correctly.");
+    }
+    return await parseFunc(dataBuffer);
+  }
+}
 
 dotenv.config();
 
@@ -395,7 +409,7 @@ app.post("/api/extract", upload.single("reportFile"), authenticateUser, requireR
       const filePath = req.file.path;
       if (req.file.mimetype === "application/pdf") {
         const dataBuffer = fs.readFileSync(filePath);
-        const pdfData = await pdfParse(dataBuffer);
+        const pdfData = await parsePdfBuffer(dataBuffer);
         reportText = pdfData.text;
       } else {
         // Text file
