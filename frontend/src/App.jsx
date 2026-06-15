@@ -120,9 +120,10 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
   const [extractorError, setExtractorError] = useState(null);
 
   // ML States
+  const [mlDataSource, setMlDataSource] = useState("extractor"); // 'extractor' or 'n8n'
   const [mlModelType, setMlModelType] = useState("xgboost");
   const [mlTarget, setMlTarget] = useState("GreenwashingRisk");
-  const [mlFeatures, setMlFeatures] = useState("");
+  const [mlFeatures, setMlFeatures] = useState("confidence, page_no");
   const [mlResult, setMlResult] = useState(null);
   const [mlLoading, setMlLoading] = useState(false);
   const [mlError, setMlError] = useState(null);
@@ -756,9 +757,19 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 
   // Run ML Analytics
   const handleRunML = async () => {
-    if (!extractedData || extractedData.length === 0) {
-      setMlError("Lütfen önce AI Rapor Analizcisi ile veri ayıklayın.");
-      return;
+    let sourceData = [];
+    if (mlDataSource === "extractor") {
+      if (!extractedData || extractedData.length === 0) {
+        setMlError("Lütfen önce AI Rapor Analizcisi ile veri ayıklayın.");
+        return;
+      }
+      sourceData = extractedData;
+    } else {
+      if (!n8nChecks || n8nChecks.length === 0) {
+        setMlError("Lütfen önce n8n Rapor Takipçisi ile internetten veri çekilmesini sağlayın veya veritabanını kontrol edin.");
+        return;
+      }
+      sourceData = n8nChecks;
     }
     setMlLoading(true);
     setMlError(null);
@@ -766,6 +777,7 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
 
     try {
       const featuresArr = mlFeatures.split(",").map(s => s.trim()).filter(s => s);
+      const defaultFeatures = mlDataSource === "extractor" ? ["value"] : ["report_year"];
       const response = await fetch(`${API_URL}/api/analyze`, {
         method: "POST",
         headers: {
@@ -773,10 +785,10 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
           "Authorization": `Bearer ${currentUser?.token}`
         },
         body: JSON.stringify({
-          data: extractedData,
+          data: sourceData,
           model_type: mlModelType,
           target: mlTarget,
-          features: featuresArr.length > 0 ? featuresArr : ["value"]
+          features: featuresArr.length > 0 ? featuresArr : defaultFeatures
         })
       });
 
@@ -1386,6 +1398,23 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
                <aside className="glass-card vertical-gap-lg">
                    <h3 style={{ color: "var(--text-primary)" }}>İleri Düzey Veri Analitiği (ML)</h3>
                    <hr style={{ borderColor: "var(--border-color)", borderStyle: "solid", borderWidth: "0 0 1px 0", marginBottom: "16px" }} />
+                   <div>
+                       <span className="label">Veri Kaynağı</span>
+                       <select className="input-field" value={mlDataSource} onChange={(e) => {
+                           const val = e.target.value;
+                           setMlDataSource(val);
+                           if (val === "n8n") {
+                             setMlTarget("validation_score");
+                             setMlFeatures("report_year");
+                           } else {
+                             setMlTarget("GreenwashingRisk");
+                             setMlFeatures("confidence, page_no");
+                           }
+                       }}>
+                           <option value="extractor">AI Rapor Analizcisi Verileri (PDF/Metin)</option>
+                           <option value="n8n">n8n Web Tarayıcısı Verileri (İnternet)</option>
+                       </select>
+                   </div>
                    <div>
                        <span className="label">Model Tipi</span>
                        <select className="input-field" value={mlModelType} onChange={(e) => setMlModelType(e.target.value)}>

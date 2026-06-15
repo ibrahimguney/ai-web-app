@@ -162,12 +162,12 @@ def main():
             result = run_xgboost(df, target, features)
         elif model_type == "lstm":
             # For extraction data, we might have 'company' instead of 'Company'
-            entity_col = 'Company' if 'Company' in df.columns else 'company'
-            time_col = 'Year' if 'Year' in df.columns else 'year'
+            entity_col = 'Company' if 'Company' in df.columns else ('company_name' if 'company_name' in df.columns else 'company')
+            time_col = 'Year' if 'Year' in df.columns else ('report_year' if 'report_year' in df.columns else 'year')
             result = run_lstm(df, target, features, time_col=time_col, entity_col=entity_col)
         elif model_type == "panel":
-            entity_col = 'Company' if 'Company' in df.columns else 'company'
-            time_col = 'Year' if 'Year' in df.columns else 'year'
+            entity_col = 'Company' if 'Company' in df.columns else ('company_name' if 'company_name' in df.columns else 'company')
+            time_col = 'Year' if 'Year' in df.columns else ('report_year' if 'report_year' in df.columns else 'year')
             result = run_panel(df, target, features, time_col=time_col, entity_col=entity_col)
         else:
             result = {"error": f"Bilinmeyen model tipi: {model_type}"}
