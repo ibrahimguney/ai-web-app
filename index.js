@@ -8,9 +8,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { exec } from "child_process";
 import * as XLSX from "xlsx";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+import pdfParseDefault from "pdf-parse";
+
+// Safely resolve the default export in case of CommonJS/ESM interop issues
+const pdfParse = typeof pdfParseDefault === 'function' ? pdfParseDefault : (pdfParseDefault.default || pdfParseDefault);
 
 dotenv.config();
 
@@ -394,8 +395,7 @@ app.post("/api/extract", upload.single("reportFile"), authenticateUser, requireR
       const filePath = req.file.path;
       if (req.file.mimetype === "application/pdf") {
         const dataBuffer = fs.readFileSync(filePath);
-        const parseFunc = typeof pdfParse === "function" ? pdfParse : (pdfParse.default || pdfParse);
-        const pdfData = await parseFunc(dataBuffer);
+        const pdfData = await pdfParse(dataBuffer);
         reportText = pdfData.text;
       } else {
         // Text file
