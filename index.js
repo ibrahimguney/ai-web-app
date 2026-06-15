@@ -394,7 +394,8 @@ app.post("/api/extract", upload.single("reportFile"), authenticateUser, requireR
       const filePath = req.file.path;
       if (req.file.mimetype === "application/pdf") {
         const dataBuffer = fs.readFileSync(filePath);
-        const pdfData = await pdfParse(dataBuffer);
+        const parseFunc = typeof pdfParse === "function" ? pdfParse : (pdfParse.default || pdfParse);
+        const pdfData = await parseFunc(dataBuffer);
         reportText = pdfData.text;
       } else {
         // Text file
