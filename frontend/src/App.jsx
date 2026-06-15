@@ -63,8 +63,16 @@ export default function App() {
           setIndicators(indData);
         }
 
-        const countResponse = await fetch("https://api.worldbank.org/v2/country?format=json&per_page=300");
-        if (countResponse.ok) {
+        let countResponse;
+        const countUrl = "https://api.worldbank.org/v2/country?format=json&per_page=300";
+        try {
+          countResponse = await fetch(countUrl);
+          if (!countResponse.ok) throw new Error();
+        } catch (e) {
+          countResponse = await fetch(`${API_URL}/api/proxy/worldbank?url=${encodeURIComponent(countUrl)}`);
+        }
+
+        if (countResponse && countResponse.ok) {
           const countData = await countResponse.json();
           if (Array.isArray(countData) && countData[1]) {
             const cleanCountries = countData[1]

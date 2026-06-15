@@ -699,6 +699,35 @@ app.get("/api/n8n/checks", authenticateUser, requireRole(["admin", "user"]), asy
   }
 });
 
+// Proxy endpoint for World Bank API (bypasses browser CORS & corporate proxy filters)
+app.get("/api/proxy/worldbank", async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ error: "url parameter is required" });
+    }
+    
+    // Safety check: ensure target is a worldbank API URL
+    if (!url.startsWith("https://api.worldbank.org/")) {
+      return res.status(400).json({ error: "Only api.worldbank.org is allowed" });
+    }
+    
+    const response = await fetch(url);
+    
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const data = await response.json();
+      return res.json(data);
+    } else {
+      const text = await response.text();
+      return res.send(text);
+    }
+  } catch (err) {
+    console.error("Proxy error:", err);
+    res.status(500).json({ error: `World Bank proxy failed: ${err.message}` });
+  }
+});
+
 app.get("/", (req, res) => {
   res.send("Sustainability AI Backend Running with Admin/User/Viewer Role Enforcements 🚀");
 });

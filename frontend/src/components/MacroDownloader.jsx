@@ -94,6 +94,24 @@ export default function MacroDownloader({
     return matchesSearch && matchesCategory;
   });
 
+  const fetchWithProxyFallback = async (targetUrl) => {
+    try {
+      const res = await fetch(targetUrl);
+      if (!res.ok) {
+        throw new Error(`Direct fetch status: ${res.status}`);
+      }
+      return res;
+    } catch (directErr) {
+      console.warn(`Direct fetch to ${targetUrl} failed. Trying proxy...`, directErr);
+      const proxyUrl = `${API_URL}/api/proxy/worldbank?url=${encodeURIComponent(targetUrl)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) {
+        throw new Error(`Proxy fetch status: ${res.status}`);
+      }
+      return res;
+    }
+  };
+
   // Fetch World Bank Data
   const fetchWorldBankData = async () => {
     if (selectedCountries.length === 0 || selectedIndicators.length === 0) {
@@ -114,9 +132,14 @@ export default function MacroDownloader({
         
         // 1. Try standard WDI source (Source 2)
         const url = `https://api.worldbank.org/v2/country/${countryCodesStr}/indicator/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`${indCode} verisi çekilemedi`);
-        const json = await res.json();
+        let res;
+        let json;
+        try {
+          res = await fetchWithProxyFallback(url);
+          json = await res.json();
+        } catch (err) {
+          throw new Error(`${indCode} verisi çekilemedi: ${err.message}`);
+        }
         
         let hasData = false;
         if (Array.isArray(json) && json[1] && (!json[0]?.message)) {
@@ -139,8 +162,8 @@ export default function MacroDownloader({
         // 2. If not found in WDI, fallback to Source 75 (ESG Data)
         if (!hasData) {
           const esgUrl = `https://api.worldbank.org/v2/sources/75/country/${countryCodesStr}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
-          const esgRes = await fetch(esgUrl);
-          if (esgRes.ok) {
+          try {
+            const esgRes = await fetchWithProxyFallback(esgUrl);
             const esgJson = await esgRes.json();
             const dataList = esgJson?.source?.data || esgJson?.data || [];
             if (dataList.length > 0 && !esgJson?.message) {
@@ -167,14 +190,16 @@ export default function MacroDownloader({
                 allResults[key][indicatorName] = parseFloat(row.value.toFixed(4));
               });
             }
+          } catch (e) {
+            console.error("ESG source fetch failed", e);
           }
         }
 
         // 3. If still not found, fallback to Source 57 (WDI Archives)
         if (!hasData) {
           const archiveUrl = `https://api.worldbank.org/v2/sources/57/country/${countryCodesStr}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
-          const archRes = await fetch(archiveUrl);
-          if (archRes.ok) {
+          try {
+            const archRes = await fetchWithProxyFallback(archiveUrl);
             const archJson = await archRes.json();
             const dataList = archJson?.source?.data || archJson?.data || [];
             if (dataList.length > 0 && !archJson?.message) {
@@ -216,6 +241,8 @@ export default function MacroDownloader({
                 allResults[key][indicatorName] = parseFloat(item.value.toFixed(4));
               });
             }
+          } catch (e) {
+            console.error("Archive source fetch failed", e);
           }
         }
       });
@@ -236,7 +263,7 @@ export default function MacroDownloader({
     } catch (err) {
       console.error(err);
       setDataError("World Bank API'sinden veri çekilirken hata oluştu: " + err.message);
-    } select: finally {
+    } finally {
       setLoadingData(false);
     }
   };
