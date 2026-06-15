@@ -4,7 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "pip install -r requirements.txt || pip3 install -r requirements.txt || python3 -m pip install -r requirements.txt || python -m pip install -r requirements.txt"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
