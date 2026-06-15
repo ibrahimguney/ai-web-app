@@ -821,7 +821,9 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
       });
 
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Makine Öğrenmesi modeli çalıştırılamadı.");
+      if (!response.ok) {
+        throw new Error(json.details ? `${json.error}\nDetay:\n${json.details}` : (json.error || "Makine Öğrenmesi modeli çalıştırılamadı."));
+      }
 
       setMlResult(json);
     } catch (err) {
@@ -1492,7 +1494,7 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
                <section className="glass-card active-border">
                    <h2>Analiz Sonuçları</h2>
                    {mlLoading && <p>Python makine öğrenmesi kütüphaneleri arka planda çalıştırılıyor...</p>}
-                   {mlError && <p style={{ color: "var(--danger)" }}>Hata: {mlError}</p>}
+                    {mlError && <pre style={{ color: "var(--danger)", background: "rgba(239, 68, 68, 0.05)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.2)", whiteSpace: "pre-wrap", fontFamily: "monospace", fontSize: "0.85rem" }}>Hata: {mlError}</pre>}
                    {mlResult && !mlLoading && (
                        <pre style={{ background: "rgba(0,0,0,0.5)", padding: "16px", borderRadius: "8px", color: "var(--primary)", overflowX: "auto" }}>
                            {JSON.stringify(mlResult, null, 2)}
