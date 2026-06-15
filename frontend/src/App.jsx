@@ -432,13 +432,17 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
       const allResults = {};
 
       const fetchPromises = selectedIndicators.map(async (indCode) => {
+        const indicatorName = indicators.find(i => i.code === indCode)?.name || indCode;
+        
+        // 1. Try standard WDI source (Source 2)
         const url = `https://api.worldbank.org/v2/country/${countryCodesStr}/indicator/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`${indCode} verisi çekilemedi`);
         const json = await res.json();
         
-        if (Array.isArray(json) && json[1]) {
-          const indicatorName = indicators.find(i => i.code === indCode)?.name || indCode;
+        let hasData = false;
+        if (Array.isArray(json) && json[1] && (!json[0]?.message)) {
+          hasData = true;
           json[1].forEach(row => {
             if (row.value === null || row.value === undefined) return;
             
@@ -452,6 +456,89 @@ Bulduğun göstergeleri şu JSON şemasında döndür. JSON dışında hiçbir �
             }
             allResults[key][indicatorName] = parseFloat(row.value.toFixed(4));
           });
+        }
+
+        // 2. If not found in WDI, fallback to Source 75 (ESG Data)
+        if (!hasData) {
+          const esgUrl = `https://api.worldbank.org/v2/sources/75/country/${countryCodesStr}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
+          const esgRes = await fetch(esgUrl);
+          if (esgRes.ok) {
+            const esgJson = await esgRes.json();
+            const dataList = esgJson?.source?.data || esgJson?.data || [];
+            if (dataList.length > 0 && !esgJson?.message) {
+              hasData = true;
+              dataList.forEach(row => {
+                if (row.value === null || row.value === undefined) return;
+                
+                const countryVar = row.variable?.find(v => v.concept === "Country");
+                const timeVar = row.variable?.find(v => v.concept === "Time");
+                if (!countryVar || !timeVar) return;
+
+                const cCode = countryVar.id;
+                const cName = countryVar.value;
+                const yearVal = parseInt(timeVar.value);
+
+                const key = `${cCode}_${yearVal}`;
+                if (!allResults[key]) {
+                  allResults[key] = {
+                    Country: cName,
+                    Code: cCode,
+                    Year: yearVal
+                  };
+                }
+                allResults[key][indicatorName] = parseFloat(row.value.toFixed(4));
+              });
+            }
+          }
+        }
+
+        // 3. If still not found, fallback to Source 57 (WDI Archives)
+        if (!hasData) {
+          const archiveUrl = `https://api.worldbank.org/v2/sources/57/country/${countryCodesStr}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
+          const archRes = await fetch(archiveUrl);
+          if (archRes.ok) {
+            const archJson = await archRes.json();
+            const dataList = archJson?.source?.data || archJson?.data || [];
+            if (dataList.length > 0 && !archJson?.message) {
+              // We filter for the latest version per year to avoid duplicates
+              const latestMap = {};
+              dataList.forEach(row => {
+                if (row.value === null || row.value === undefined) return;
+                const countryVar = row.variable?.find(v => v.concept === "Country");
+                const timeVar = row.variable?.find(v => v.concept === "Time");
+                const versionVar = row.variable?.find(v => v.concept === "Version");
+                if (!countryVar || !timeVar || !versionVar) return;
+
+                const cCode = countryVar.id;
+                const cName = countryVar.value;
+                const yearVal = parseInt(timeVar.value);
+                const versionId = parseInt(versionVar.id);
+
+                const key = `${cCode}_${yearVal}`;
+                if (!latestMap[key] || latestMap[key].version < versionId) {
+                  latestMap[key] = {
+                    Country: cName,
+                    Code: cCode,
+                    Year: yearVal,
+                    value: row.value,
+                    version: versionId
+                  };
+                }
+              });
+
+              Object.values(latestMap).forEach(item => {
+                const key = `${item.Code}_${item.Year}`;
+                if (!allResults[key]) {
+                  allResults[key] = {
+                    Country: item.Country,
+                    Code: item.Code,
+                    Year: item.Year
+                  };
+                }
+                allResults[key][indicatorName] = parseFloat(item.value.toFixed(4));
+              });
+            }
+          }
         }
       });
 
