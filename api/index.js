@@ -67,9 +67,9 @@ const openai = new OpenAI({
 });
 
 // JSON Database File Paths
-const usersFilePath = path.join(__dirname, "..", "users.json");
-const indicatorsFilePath = path.join(__dirname, "..", "indicators.json");
-const logsFilePath = path.join(__dirname, "..", "activity_logs.json");
+const usersFilePath = path.join(__dirname, "users.json");
+const indicatorsFilePath = path.join(__dirname, "indicators.json");
+const logsFilePath = path.join(__dirname, "activity_logs.json");
 
 // Helper function to read/write JSON files
 const readJsonFile = (filePath, defaultValue = []) => {
