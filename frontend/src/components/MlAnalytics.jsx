@@ -97,11 +97,10 @@ export default function MlAnalytics({
                 setMlTarget("validation_score");
                 setMlFeatures("report_year");
               } else if (val === "macro") {
-                const firstInd = selectedIndicators.length > 0 
-                  ? (indicators.find(i => i.code === selectedIndicators[0])?.name || "value")
-                  : "value";
+                // selectedIndicators is already an array of full indicator names!
+                const firstInd = selectedIndicators.length > 0 ? selectedIndicators[0] : "value";
                 setMlTarget(firstInd);
-                const otherInds = selectedIndicators.slice(1).map(code => indicators.find(i => i.code === code)?.name).filter(n => n);
+                const otherInds = selectedIndicators.slice(1);
                 setMlFeatures(otherInds.length > 0 ? otherInds.join(", ") : "Year");
               } else {
                 setMlTarget("GreenwashingRisk");
