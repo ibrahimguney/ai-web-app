@@ -371,7 +371,7 @@ app.post("/api/export", authenticateUser, requireRole(["admin", "user"]), async 
 
       // Execute Python script
       const convertPyPath = path.join(__dirname, "..", "convert.py");
-      const cmd = `python "${convertPyPath}" "${tempJsonPath}" "${tempOutPath}" "${fileFormat}"`;
+      const cmd = `python3 "${convertPyPath}" "${tempJsonPath}" "${tempOutPath}" "${fileFormat}"`;
       
       exec(cmd, (error, stdout, stderr) => {
         // Clean up input json file immediately
@@ -570,7 +570,7 @@ app.post("/api/analyze", authenticateUser, requireRole(["admin", "user"]), async
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
     const analyzePyPath = path.join(__dirname, "..", "analyze.py");
-    const cmd = `python "${analyzePyPath}" "${configPath}" "${outputPath}"`;
+    const cmd = `python3 "${analyzePyPath}" "${configPath}" "${outputPath}"`;
     
     exec(cmd, (error, stdout, stderr) => {
       // Clean up config file
