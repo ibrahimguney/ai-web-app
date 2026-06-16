@@ -125,13 +125,13 @@ export default function MlAnalytics({
         </div>
 
         <div>
-          <span className="label">Hedef Değişken (Örn: value)</span>
+          <span className="label">Hedef Değişken (Örn: {mlDataSource === 'macro' ? 'CO2 emissions...' : 'value'})</span>
           <input 
             type="text" 
             className="input-field" 
             value={mlTarget} 
             onChange={(e) => setMlTarget(e.target.value)} 
-            placeholder="Bağımlı değişken" 
+            placeholder={mlDataSource === 'macro' ? "Örn: CO2 emissions (metric tons per capita)" : "Bağımlı değişken"} 
           />
         </div>
 
@@ -142,7 +142,7 @@ export default function MlAnalytics({
             className="input-field" 
             value={mlFeatures} 
             onChange={(e) => setMlFeatures(e.target.value)} 
-            placeholder="Örn: confidence, page_no" 
+            placeholder={mlDataSource === 'macro' ? "Örn: Year, GDP growth..." : "Örn: confidence, page_no"} 
           />
         </div>
 

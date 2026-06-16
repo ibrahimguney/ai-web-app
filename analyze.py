@@ -152,6 +152,11 @@ def main():
 
         df = pd.DataFrame(data)
 
+        # Sütun kontrolü
+        missing_cols = [col for col in [target] + features if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Belirtilen değişkenler veri setinde bulunamadı: {', '.join(missing_cols)}. Makro veri kullanıyorsanız 'value' yerine göstergenin tam adını (örn: 'CO2 emissions...') yazmalısınız.")
+
         # Temizlik: sayısal değerlere dönüştür
         for col in [target] + features:
             if col in df.columns:

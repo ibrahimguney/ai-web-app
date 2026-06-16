@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node api/index.js",
-    "build": "npm install --prefix frontend && npm run build --prefix frontend && mv frontend/dist dist",
-    "postinstall": "pip install --break-system-packages -r requirements.txt || pip3 install --break-system-packages -r requirements.txt || python3 -m pip install --break-system-packages -r requirements.txt || python -m pip install --break-system-packages -r requirements.txt || true"
+    "build": "npm install --prefix frontend && npm run build --prefix frontend && mv frontend/dist dist"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
