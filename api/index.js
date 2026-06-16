@@ -644,6 +644,7 @@ app.post("/api/n8n/sources", authenticateUser, requireRole(["admin", "user"]), a
           company_name, 
           ticker: ticker || "", 
           report_year: report_year || "2024", 
+          source_url,
           source_type: source_type || "investor_relations_page",
           is_active: true
         }

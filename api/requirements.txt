@@ -2,3 +2,6 @@ pandas
 pyreadstat
 openpyxl
 flask
+scikit-learn
+xgboost
+statsmodels
