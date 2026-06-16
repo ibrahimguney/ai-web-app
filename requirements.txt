@@ -4,3 +4,6 @@ scikit-learn
 xgboost
 statsmodels
 linearmodels
+pyreadstat
+openpyxl
+flask
