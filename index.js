@@ -426,7 +426,7 @@ app.post("/api/extract", upload.single("reportFile"), authenticateUser, requireR
       if (req.file.mimetype === "application/pdf") {
         const dataBuffer = fs.readFileSync(filePath);
         const pdfData = await parsePdfBuffer(dataBuffer);
-        reportText = pdfData.text;
+        reportText = typeof pdfData === 'string' ? pdfData : (pdfData.text || "");
       } else {
         // Text file
         reportText = fs.readFileSync(filePath, "utf-8");
