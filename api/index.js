@@ -10,6 +10,7 @@ import { exec } from "child_process";
 import * as XLSX from "xlsx";
 import * as pdfParseModule from "pdf-parse";
 import { createClient } from "@supabase/supabase-js";
+import os from "os";
 
 dotenv.config();
 
@@ -54,11 +55,11 @@ app.use(express.json({ limit: "50mb" })); // Increase limit for large JSON expor
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Multer configuration for file uploads (stored in a temp directory)
-const uploadDir = path.join(__dirname, "temp_uploads");
+const uploadDir = path.join(os.tmpdir(), "temp_uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
-const upload = multer({ dest: "temp_uploads/" });
+const upload = multer({ dest: uploadDir });
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -66,9 +67,9 @@ const openai = new OpenAI({
 });
 
 // JSON Database File Paths
-const usersFilePath = path.join(__dirname, "users.json");
-const indicatorsFilePath = path.join(__dirname, "indicators.json");
-const logsFilePath = path.join(__dirname, "activity_logs.json");
+const usersFilePath = path.join(__dirname, "..", "users.json");
+const indicatorsFilePath = path.join(__dirname, "..", "indicators.json");
+const logsFilePath = path.join(__dirname, "..", "activity_logs.json");
 
 // Helper function to read/write JSON files
 const readJsonFile = (filePath, defaultValue = []) => {
@@ -361,15 +362,16 @@ app.post("/api/export", authenticateUser, requireRole(["admin", "user"]), async 
     // 2. Export to SPSS (.sav) or STATA (.dta) using Python script
     if (fileFormat === "spss" || fileFormat === "stata") {
       const tempId = Math.random().toString(36).substring(7);
-      const tempJsonPath = path.join(__dirname, `temp_${tempId}.json`);
+      const tempJsonPath = path.join(os.tmpdir(), `temp_${tempId}.json`);
       const fileExt = fileFormat === "spss" ? "sav" : "dta";
-      const tempOutPath = path.join(__dirname, `temp_${tempId}.${fileExt}`);
+      const tempOutPath = path.join(os.tmpdir(), `temp_${tempId}.${fileExt}`);
 
       // Write data to temporary JSON file
       fs.writeFileSync(tempJsonPath, JSON.stringify(data, null, 2), "utf-8");
 
       // Execute Python script
-      const cmd = `python convert.py "${tempJsonPath}" "${tempOutPath}" "${fileFormat}"`;
+      const convertPyPath = path.join(__dirname, "..", "convert.py");
+      const cmd = `python "${convertPyPath}" "${tempJsonPath}" "${tempOutPath}" "${fileFormat}"`;
       
       exec(cmd, (error, stdout, stderr) => {
         // Clean up input json file immediately
@@ -561,13 +563,14 @@ app.post("/api/analyze", authenticateUser, requireRole(["admin", "user"]), async
     logActivity(req.user, "İleri Düzey Analiz", `${model_type.toUpperCase()} modeli çalıştırıldı. Hedef: ${target}`);
 
     const tempId = Math.random().toString(36).substring(7);
-    const configPath = path.join(__dirname, `temp_config_${tempId}.json`);
-    const outputPath = path.join(__dirname, `temp_output_${tempId}.json`);
+    const configPath = path.join(os.tmpdir(), `temp_config_${tempId}.json`);
+    const outputPath = path.join(os.tmpdir(), `temp_output_${tempId}.json`);
 
     const config = { data, model_type, target, features };
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
-    const cmd = `python analyze.py "${configPath}" "${outputPath}"`;
+    const analyzePyPath = path.join(__dirname, "..", "analyze.py");
+    const cmd = `python "${analyzePyPath}" "${configPath}" "${outputPath}"`;
     
     exec(cmd, (error, stdout, stderr) => {
       // Clean up config file
