@@ -125,25 +125,54 @@ export default function MlAnalytics({
         </div>
 
         <div>
-          <span className="label">Hedef Değişken (Örn: {mlDataSource === 'macro' ? 'CO2 emissions...' : 'value'})</span>
-          <input 
-            type="text" 
-            className="input-field" 
-            value={mlTarget} 
-            onChange={(e) => setMlTarget(e.target.value)} 
-            placeholder={mlDataSource === 'macro' ? "Örn: CO2 emissions (metric tons per capita)" : "Bağımlı değişken"} 
-          />
+          <span className="label">Hedef Değişken</span>
+          {mlDataSource === 'macro' && selectedIndicators.length > 0 ? (
+            <select className="input-field" value={mlTarget} onChange={(e) => setMlTarget(e.target.value)}>
+              {selectedIndicators.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+            </select>
+          ) : (
+            <input 
+              type="text" 
+              className="input-field" 
+              value={mlTarget} 
+              onChange={(e) => setMlTarget(e.target.value)} 
+              placeholder={mlDataSource === 'macro' ? "Örn: CO2 emissions..." : "Bağımlı değişken (Örn: value)"} 
+            />
+          )}
         </div>
 
         <div>
-          <span className="label">Girdi Değişkenleri (Virgülle ayırın)</span>
-          <input 
-            type="text" 
-            className="input-field" 
-            value={mlFeatures} 
-            onChange={(e) => setMlFeatures(e.target.value)} 
-            placeholder={mlDataSource === 'macro' ? "Örn: Year, GDP growth..." : "Örn: confidence, page_no"} 
-          />
+          <span className="label">Girdi Değişkenleri</span>
+          {mlDataSource === 'macro' && selectedIndicators.length > 0 ? (
+            <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginTop: '4px'}}>
+              <label style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer'}}>
+                <input type="checkbox" checked={mlFeatures.includes("Year")} onChange={(e) => {
+                  let feats = mlFeatures.split(",").map(s => s.trim()).filter(s => s);
+                  if (e.target.checked) { if(!feats.includes("Year")) feats.push("Year"); } 
+                  else { feats = feats.filter(f => f !== "Year"); }
+                  setMlFeatures(feats.join(", "));
+                }}/> Yıl (Year)
+              </label>
+              {selectedIndicators.map(ind => (
+                <label key={ind} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer'}}>
+                  <input type="checkbox" checked={mlFeatures.includes(ind)} onChange={(e) => {
+                    let feats = mlFeatures.split(",").map(s => s.trim()).filter(s => s);
+                    if (e.target.checked) { if(!feats.includes(ind)) feats.push(ind); } 
+                    else { feats = feats.filter(f => f !== ind); }
+                    setMlFeatures(feats.join(", "));
+                  }}/> {ind}
+                </label>
+              ))}
+            </div>
+          ) : (
+            <input 
+              type="text" 
+              className="input-field" 
+              value={mlFeatures} 
+              onChange={(e) => setMlFeatures(e.target.value)} 
+              placeholder="Örn: confidence, page_no" 
+            />
+          )}
         </div>
 
         <button className="btn btn-primary" onClick={handleRunML} disabled={mlLoading}>
