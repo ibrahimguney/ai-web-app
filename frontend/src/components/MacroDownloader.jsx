@@ -186,6 +186,7 @@ export default function MacroDownloader({
                   const rCode = countryVar.id;
                   const rName = countryVar.value;
                   const yearVal = parseInt(timeVar.value);
+                  if (yearVal < startYear || yearVal > endYear) return;
 
                   const key = `${rCode}_${yearVal}`;
                   if (!allResults[key]) {
@@ -205,10 +206,10 @@ export default function MacroDownloader({
           await Promise.all(esgPromises);
         }
 
-        // 3. If still not found, fallback to Source 57 (WDI Archives) by querying countries individually in parallel
+        // 3. If still not found, fallback to Source 57 (WDI Archives) by querying countries individually in parallel with version selection
         if (!hasData) {
           const archivePromises = selectedCountries.map(async (cCode) => {
-            const archiveUrl = `https://api.worldbank.org/v2/sources/57/country/${cCode.toLowerCase()}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
+            const archiveUrl = `https://api.worldbank.org/v2/sources/57/country/${cCode.toLowerCase()}/series/${indCode}/version/202309?date=${startYear}:${endYear}&format=json&per_page=1000`;
             try {
               const archRes = await fetchWithProxyFallback(archiveUrl);
               const archJson = await archRes.json();
@@ -226,6 +227,7 @@ export default function MacroDownloader({
                   const rCode = countryVar.id;
                   const rName = countryVar.value;
                   const yearVal = parseInt(timeVar.value);
+                  if (yearVal < startYear || yearVal > endYear) return;
                   const versionId = parseInt(versionVar.id);
 
                   const key = `${rCode}_${yearVal}`;
