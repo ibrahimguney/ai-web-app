@@ -50,32 +50,40 @@ export default function MlAnalytics({
 
   const availableCols = getAvailableColumns();
 
+  const EXCLUDED_COLS = [
+    "Country", "Code", "Year", "country", "code", "year",
+    "company", "company_name", "ticker", "report_year",
+    "indicator", "category", "unit", "evidence_sentence", "source_url",
+    "manual_check", "is_vague", "gri_tcfd_alignment", "context",
+    "validation_status", "error_message", "content_type", "id", "created_at"
+  ];
+
+  const filteredCols = availableCols.filter(col => !EXCLUDED_COLS.includes(col));
+
   // Watch for data source or data changes to keep target and features synchronized
   useEffect(() => {
-    if (availableCols.length > 0) {
+    if (filteredCols.length > 0) {
       let nextTarget = mlTarget;
-      // If target is not in the list of available columns, set it to a sensible fallback
-      if (!availableCols.includes(mlTarget)) {
+      // If target is not in the list of filtered columns, set it to a sensible fallback
+      if (!filteredCols.includes(mlTarget)) {
         if (mlDataSource === "extractor") {
-          nextTarget = availableCols.includes("value") ? "value" : (availableCols.includes("confidence") ? "confidence" : availableCols[0]);
+          nextTarget = filteredCols.includes("value") ? "value" : (filteredCols.includes("confidence") ? "confidence" : filteredCols[0]);
         } else if (mlDataSource === "n8n") {
-          nextTarget = availableCols.includes("validation_score") ? "validation_score" : availableCols[0];
+          nextTarget = filteredCols.includes("validation_score") ? "validation_score" : filteredCols[0];
         } else if (mlDataSource === "macro") {
-          // Select first indicator column (not Country/Code/Year)
-          const indCols = availableCols.filter(c => c !== "Country" && c !== "Code" && c !== "Year");
-          nextTarget = indCols.length > 0 ? indCols[0] : availableCols[0];
+          nextTarget = filteredCols[0];
         } else {
-          nextTarget = availableCols[0];
+          nextTarget = filteredCols[0];
         }
         setMlTarget(nextTarget);
       }
 
-      // Filter selected features to only keep ones that are in available columns and not equal to target
-      let validFeatures = selectedFeatures.filter(f => availableCols.includes(f) && f !== nextTarget);
+      // Filter selected features to only keep ones that are in filtered columns and not equal to target
+      let validFeatures = selectedFeatures.filter(f => filteredCols.includes(f) && f !== nextTarget);
       if (validFeatures.length === 0) {
-        // Fallback: select first column that isn't target and metadata
-        const fallback = availableCols.filter(c => c !== nextTarget && c !== "Country" && c !== "Code" && c !== "company" && c !== "company_name" && c !== "ticker");
-        validFeatures = fallback.length > 0 ? [fallback[0]] : (availableCols.length > 1 ? [availableCols[1]] : []);
+        // Fallback: select first column that isn't target
+        const fallback = filteredCols.filter(c => c !== nextTarget);
+        validFeatures = fallback.length > 0 ? [fallback[0]] : [];
         setSelectedFeatures(validFeatures);
       } else {
         setSelectedFeatures(validFeatures);
@@ -95,15 +103,15 @@ export default function MlAnalytics({
       setSelectedFeatures(["page_no"]);
     } else if (val === "n8n") {
       setMlTarget("validation_score");
-      setSelectedFeatures(["report_year"]);
+      setSelectedFeatures(["status_code"]);
     } else if (val === "macro") {
       const cols = fetchedData.length > 0 ? Object.keys(fetchedData[0]) : ["Country", "Code", "Year", ...selectedIndicators];
-      const indCols = cols.filter(k => k !== "Country" && k !== "Code" && k !== "Year");
+      const indCols = cols.filter(k => !EXCLUDED_COLS.includes(k));
       if (indCols.length > 0) {
         setMlTarget(indCols[0]);
-        setSelectedFeatures(indCols.slice(1).length > 0 ? [indCols[1]] : ["Year"]);
+        setSelectedFeatures(indCols.slice(1).length > 0 ? [indCols[1]] : []);
       } else {
-        setMlTarget("Year");
+        setMlTarget("");
         setSelectedFeatures([]);
       }
     }
@@ -334,7 +342,7 @@ export default function MlAnalytics({
             value={mlTarget} 
             onChange={(e) => setMlTarget(e.target.value)}
           >
-            {availableCols.map(col => (
+            {filteredCols.map(col => (
               <option key={col} value={col}>{col}</option>
             ))}
           </select>
@@ -353,7 +361,7 @@ export default function MlAnalytics({
             borderRadius: "6px", 
             background: "rgba(0,0,0,0.2)" 
           }}>
-            {availableCols
+            {filteredCols
               .filter(col => col !== mlTarget) // Target cannot be a feature itself
               .map(col => (
                 <label key={col} style={{ 
@@ -365,15 +373,15 @@ export default function MlAnalytics({
                   cursor: "pointer" 
                 }}>
                   <input 
-                    type="checkbox" 
-                    checked={selectedFeatures.includes(col)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedFeatures([...selectedFeatures, col]);
-                      } else {
-                        setSelectedFeatures(selectedFeatures.filter(f => f !== col));
-                      }
-                    }}
+                     type="checkbox" 
+                     checked={selectedFeatures.includes(col)}
+                     onChange={(e) => {
+                       if (e.target.checked) {
+                         setSelectedFeatures([...selectedFeatures, col]);
+                       } else {
+                         setSelectedFeatures(selectedFeatures.filter(f => f !== col));
+                       }
+                     }}
                   />
                   {col}
                 </label>
