@@ -139,7 +139,7 @@ export default function App() {
             n8nChecks={n8nChecks} 
             extractedData={extractedData} 
             indicators={indicators} 
-            selectedIndicators={fetchedData.length > 0 ? Object.keys(fetchedData[0]).filter(k => k !== "Country" && k !== "Code" && k !== "Year") : []}
+            selectedIndicators={fetchedData.length > 0 ? Array.from(new Set(fetchedData.flatMap(Object.keys))).filter(k => k !== "Country" && k !== "Code" && k !== "Year") : []}
           />
         )}
 

@@ -31,7 +31,11 @@ export default function MlAnalytics({
     }
 
     if (sourceData && sourceData.length > 0) {
-      return Object.keys(sourceData[0]);
+      const allKeys = new Set();
+      sourceData.forEach(row => {
+        Object.keys(row).forEach(k => allKeys.add(k));
+      });
+      return Array.from(allKeys);
     }
 
     // Default fallbacks if no data is loaded yet
