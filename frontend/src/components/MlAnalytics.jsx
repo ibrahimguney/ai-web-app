@@ -361,31 +361,37 @@ export default function MlAnalytics({
             borderRadius: "6px", 
             background: "rgba(0,0,0,0.2)" 
           }}>
-            {filteredCols
-              .filter(col => col !== mlTarget) // Target cannot be a feature itself
-              .map(col => (
-                <label key={col} style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: "8px", 
-                  color: "var(--text-secondary)", 
-                  fontSize: "0.85rem", 
-                  cursor: "pointer" 
-                }}>
-                  <input 
-                     type="checkbox" 
-                     checked={selectedFeatures.includes(col)}
-                     onChange={(e) => {
-                       if (e.target.checked) {
-                         setSelectedFeatures([...selectedFeatures, col]);
-                       } else {
-                         setSelectedFeatures(selectedFeatures.filter(f => f !== col));
-                       }
-                     }}
-                  />
-                  {col}
-                </label>
-              ))}
+            {filteredCols.filter(col => col !== mlTarget).length > 0 ? (
+              filteredCols
+                .filter(col => col !== mlTarget) // Target cannot be a feature itself
+                .map(col => (
+                  <label key={col} style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "8px", 
+                    color: "var(--text-secondary)", 
+                    fontSize: "0.85rem", 
+                    cursor: "pointer" 
+                  }}>
+                    <input 
+                       type="checkbox" 
+                       checked={selectedFeatures.includes(col)}
+                       onChange={(e) => {
+                         if (e.target.checked) {
+                           setSelectedFeatures([...selectedFeatures, col]);
+                         } else {
+                           setSelectedFeatures(selectedFeatures.filter(f => f !== col));
+                         }
+                       }}
+                    />
+                    {col}
+                  </label>
+                ))
+            ) : (
+              <div style={{ color: "var(--warning)", fontSize: "0.75rem", padding: "4px 0", lineHeight: "1.3" }}>
+                ⚠️ Seçilebilir girdi değişkeni bulunamadı. Lütfen "Makro Veri İndirici" sekmesinden en az iki adet gösterge çekildiğinden emin olun.
+              </div>
+            )}
           </div>
         </div>
 
