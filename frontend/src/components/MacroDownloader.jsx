@@ -9,6 +9,13 @@ import {
   Search
 } from "lucide-react";
 
+const OECD_COUNTRIES = [
+  "AUS", "AUT", "BEL", "CAN", "CHL", "COL", "CRI", "CZE", "DNK", "EST",
+  "FIN", "FRA", "DEU", "GRC", "HUN", "ISL", "IRL", "ISR", "ITA", "JPN",
+  "KOR", "LVA", "LTU", "LUX", "MEX", "NLD", "NZL", "NOR", "POL", "PRT",
+  "SVK", "SVN", "ESP", "SWE", "CHE", "TUR", "GBR", "USA"
+];
+
 export default function MacroDownloader({ 
   API_URL, 
   currentUser, 
@@ -18,7 +25,7 @@ export default function MacroDownloader({
   setFetchedData 
 }) {
   // Selector selections for World Bank
-  const [selectedCountries, setSelectedCountries] = useState(["TUR", "USA", "DEU"]);
+  const [selectedCountries, setSelectedCountries] = useState(OECD_COUNTRIES);
   const [selectedIndicators, setSelectedIndicators] = useState([
     "EN.ATM.CO2E.PC",
     "EG.FEC.RNEW.ZS",
