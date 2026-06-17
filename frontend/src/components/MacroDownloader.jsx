@@ -166,91 +166,97 @@ export default function MacroDownloader({
           });
         }
 
-        // 2. If not found in WDI, fallback to Source 75 (ESG Data)
+        // 2. If not found in WDI, fallback to Source 75 (ESG Data) by querying countries individually in parallel
         if (!hasData) {
-          const esgUrl = `https://api.worldbank.org/v2/sources/75/country/${countryCodesStr}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
-          try {
-            const esgRes = await fetchWithProxyFallback(esgUrl);
-            const esgJson = await esgRes.json();
-            const dataList = esgJson?.source?.data || esgJson?.data || [];
-            if (dataList.length > 0 && !esgJson?.message) {
-              hasData = true;
-              dataList.forEach(row => {
-                if (row.value === null || row.value === undefined) return;
-                
-                const countryVar = row.variable?.find(v => v.concept === "Country");
-                const timeVar = row.variable?.find(v => v.concept === "Time");
-                if (!countryVar || !timeVar) return;
+          const esgPromises = selectedCountries.map(async (cCode) => {
+            const esgUrl = `https://api.worldbank.org/v2/sources/75/country/${cCode.toLowerCase()}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
+            try {
+              const esgRes = await fetchWithProxyFallback(esgUrl);
+              const esgJson = await esgRes.json();
+              const dataList = esgJson?.source?.data || esgJson?.data || [];
+              if (dataList.length > 0 && !esgJson?.message) {
+                hasData = true;
+                dataList.forEach(row => {
+                  if (row.value === null || row.value === undefined) return;
+                  
+                  const countryVar = row.variable?.find(v => v.concept === "Country");
+                  const timeVar = row.variable?.find(v => v.concept === "Time");
+                  if (!countryVar || !timeVar) return;
 
-                const cCode = countryVar.id;
-                const cName = countryVar.value;
-                const yearVal = parseInt(timeVar.value);
+                  const rCode = countryVar.id;
+                  const rName = countryVar.value;
+                  const yearVal = parseInt(timeVar.value);
 
-                const key = `${cCode}_${yearVal}`;
-                if (!allResults[key]) {
-                  allResults[key] = {
-                    Country: cName,
-                    Code: cCode,
-                    Year: yearVal
-                  };
-                }
-                allResults[key][indicatorName] = parseFloat(row.value.toFixed(4));
-              });
+                  const key = `${rCode}_${yearVal}`;
+                  if (!allResults[key]) {
+                    allResults[key] = {
+                      Country: rName,
+                      Code: rCode,
+                      Year: yearVal
+                    };
+                  }
+                  allResults[key][indicatorName] = parseFloat(row.value.toFixed(4));
+                });
+              }
+            } catch (e) {
+              console.error(`ESG source fetch failed for ${cCode}`, e);
             }
-          } catch (e) {
-            console.error("ESG source fetch failed", e);
-          }
+          });
+          await Promise.all(esgPromises);
         }
 
-        // 3. If still not found, fallback to Source 57 (WDI Archives)
+        // 3. If still not found, fallback to Source 57 (WDI Archives) by querying countries individually in parallel
         if (!hasData) {
-          const archiveUrl = `https://api.worldbank.org/v2/sources/57/country/${countryCodesStr}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
-          try {
-            const archRes = await fetchWithProxyFallback(archiveUrl);
-            const archJson = await archRes.json();
-            const dataList = archJson?.source?.data || archJson?.data || [];
-            if (dataList.length > 0 && !archJson?.message) {
-              // We filter for the latest version per year to avoid duplicates
-              const latestMap = {};
-              dataList.forEach(row => {
-                if (row.value === null || row.value === undefined) return;
-                const countryVar = row.variable?.find(v => v.concept === "Country");
-                const timeVar = row.variable?.find(v => v.concept === "Time");
-                const versionVar = row.variable?.find(v => v.concept === "Version");
-                if (!countryVar || !timeVar || !versionVar) return;
+          const archivePromises = selectedCountries.map(async (cCode) => {
+            const archiveUrl = `https://api.worldbank.org/v2/sources/57/country/${cCode.toLowerCase()}/series/${indCode}?date=${startYear}:${endYear}&format=json&per_page=1000`;
+            try {
+              const archRes = await fetchWithProxyFallback(archiveUrl);
+              const archJson = await archRes.json();
+              const dataList = archJson?.source?.data || archJson?.data || [];
+              if (dataList.length > 0 && !archJson?.message) {
+                hasData = true;
+                const latestMap = {};
+                dataList.forEach(row => {
+                  if (row.value === null || row.value === undefined) return;
+                  const countryVar = row.variable?.find(v => v.concept === "Country");
+                  const timeVar = row.variable?.find(v => v.concept === "Time");
+                  const versionVar = row.variable?.find(v => v.concept === "Version");
+                  if (!countryVar || !timeVar || !versionVar) return;
 
-                const cCode = countryVar.id;
-                const cName = countryVar.value;
-                const yearVal = parseInt(timeVar.value);
-                const versionId = parseInt(versionVar.id);
+                  const rCode = countryVar.id;
+                  const rName = countryVar.value;
+                  const yearVal = parseInt(timeVar.value);
+                  const versionId = parseInt(versionVar.id);
 
-                const key = `${cCode}_${yearVal}`;
-                if (!latestMap[key] || latestMap[key].version < versionId) {
-                  latestMap[key] = {
-                    Country: cName,
-                    Code: cCode,
-                    Year: yearVal,
-                    value: row.value,
-                    version: versionId
-                  };
-                }
-              });
+                  const key = `${rCode}_${yearVal}`;
+                  if (!latestMap[key] || latestMap[key].version < versionId) {
+                    latestMap[key] = {
+                      Country: rName,
+                      Code: rCode,
+                      Year: yearVal,
+                      value: row.value,
+                      version: versionId
+                    };
+                  }
+                });
 
-              Object.values(latestMap).forEach(item => {
-                const key = `${item.Code}_${item.Year}`;
-                if (!allResults[key]) {
-                  allResults[key] = {
-                    Country: item.Country,
-                    Code: item.Code,
-                    Year: item.Year
-                  };
-                }
-                allResults[key][indicatorName] = parseFloat(item.value.toFixed(4));
-              });
+                Object.values(latestMap).forEach(item => {
+                  const key = `${item.Code}_${item.Year}`;
+                  if (!allResults[key]) {
+                    allResults[key] = {
+                      Country: item.Country,
+                      Code: item.Code,
+                      Year: item.Year
+                    };
+                  }
+                  allResults[key][indicatorName] = parseFloat(item.value.toFixed(4));
+                });
+              }
+            } catch (e) {
+              console.error(`Archive source fetch failed for ${cCode}`, e);
             }
-          } catch (e) {
-            console.error("Archive source fetch failed", e);
-          }
+          });
+          await Promise.all(archivePromises);
         }
       });
 
