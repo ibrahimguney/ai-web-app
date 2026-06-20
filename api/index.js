@@ -732,6 +732,108 @@ app.get("/api/proxy/worldbank", async (req, res) => {
   }
 });
 
+// Receive webhook from n8n when a new report is found
+app.post("/api/n8n/webhook", async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ error: "Supabase bağlantısı yapılandırılmamış." });
+    }
+
+    const { company_name, ticker, report_year, source_url, candidate_url } = req.body;
+
+    if (!company_name || !candidate_url) {
+      return res.status(400).json({ error: "company_name ve candidate_url zorunludur." });
+    }
+
+    // Değişken tanımları
+    let validation_score = 0;
+    let validation_status = "pending";
+    let is_pdf = candidate_url.toLowerCase().endsWith(".pdf");
+    let year_in_url = false;
+    let error_message = "";
+
+    const urlLower = candidate_url.toLowerCase();
+    
+    // Yıl kontrolü (istatistiksel bilgi için)
+    if (report_year && urlLower.includes(report_year.toString())) {
+      year_in_url = true;
+    }
+
+    // LLM ile Anlamsal Doğrulama (Advanced Validation)
+    try {
+      const prompt = `Aşağıdaki URL bir şirketin yatırımcı ilişkileri sayfasından veya faaliyet raporları bölümünden web tarayıcı robot (n8n) ile otomatik çekilmiştir. 
+Bu URL'nin ${report_year || "güncel"} yılına ait bir "Sürdürülebilirlik Raporu", "ESG Raporu" veya "Entegre Faaliyet Raporu" (PDF veya sayfa) olma ihtimalini 0 ile 100 arası skorla değerlendir.
+Lütfen yanıtını SADECE aşağıdaki JSON formatında ver, başka metin ekleme:
+{"score": 85, "reason": "URL'de sustainability ve 2024 kelimeleri geçiyor."}
+
+URL: ${candidate_url}`;
+      
+      const aiResponse = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "Sen bir veri doğrulama ve sürdürülebilirlik uzmanısın. Yalnızca geçerli bir JSON nesnesi döndür." }, 
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" }
+      });
+      
+      const llmResult = JSON.parse(aiResponse.choices[0].message.content);
+      validation_score = llmResult.score || 0;
+      
+      // Durum belirleme
+      if (validation_score >= 70) {
+        validation_status = "success";
+      } else if (validation_score >= 40) {
+        validation_status = "pending";
+        error_message = llmResult.reason || "Kısmi eşleşme tespit edildi, manuel inceleme önerilir.";
+      } else {
+        validation_status = "failed";
+        error_message = llmResult.reason || "URL bir sürdürülebilirlik raporuna benzemiyor.";
+      }
+    } catch (llmErr) {
+      console.error("LLM Validation Error:", llmErr);
+      // Yapay zeka tarafında hata olursa basit bir "Fallback" (yedek) kontrol yapalım
+      validation_score = is_pdf ? 50 : 10;
+      validation_status = "pending";
+      error_message = "Yapay zeka doğrulaması başarısız oldu, sistem manuel kontrol durumuna aldı.";
+    }
+
+    // Supabase'e ekle (aynı şirket, yıl ve url varsa hata vermemesi için upsert mantığı veya conflict handle edilebilir. Ancak schema'da uq_report_candidate var. Şimdilik upsert desteklenmiyorsa diye hatayı yakalayacağız.)
+    const { data, error } = await supabase
+      .from("report_link_checks")
+      .insert([
+        { 
+          company_name, 
+          ticker: ticker || "", 
+          report_year: report_year || "2024", 
+          source_url: source_url || "",
+          candidate_url,
+          status_code: 200,
+          content_type: is_pdf ? "application/pdf" : "unknown",
+          is_pdf,
+          year_in_url,
+          validation_score,
+          validation_status,
+          error_message
+        }
+      ])
+      .select();
+    
+    if (error) {
+      // Eğer unique constraint hatası gelirse (kod 23505) mükerrer kayıttır, yoksayabiliriz.
+      if (error.code === '23505') {
+        return res.status(200).json({ message: "Bu rapor zaten kayıtlı.", status: "ignored" });
+      }
+      throw error;
+    }
+    
+    res.status(201).json({ message: "Rapor başarıyla kaydedildi.", data: data[0] });
+  } catch (err) {
+    console.error("Webhook error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/", (req, res) => {
   res.send("Sustainability AI Backend Running with Admin/User/Viewer Role Enforcements 🚀");
 });

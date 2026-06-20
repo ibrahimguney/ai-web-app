@@ -1,0 +1,140 @@
+{
+  "name": "BIST Report Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days"
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule (Daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3001/api/n8n/sources",
+        "method": "GET",
+        "authentication": "none"
+      },
+      "id": "2",
+      "name": "Get Report Sources",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.source_url }}",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Scrape Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "links",
+              "cssSelector": "a",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5",
+      "name": "Extract Links",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3001/api/n8n/webhook",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "company_name", "value": "={{ $('Get Report Sources').item.json.company_name }}" },
+            { "name": "ticker", "value": "={{ $('Get Report Sources').item.json.ticker }}" },
+            { "name": "report_year", "value": "={{ $('Get Report Sources').item.json.report_year }}" },
+            { "name": "source_url", "value": "={{ $('Get Report Sources').item.json.source_url }}" },
+            { "name": "candidate_url", "value": "={{ $json.links }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6",
+      "name": "Send to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule (Daily)": {
+      "main": [
+        [
+          { "node": "Get Report Sources", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Report Sources": {
+      "main": [
+        [
+          { "node": "Split In Batches", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          { "node": "Scrape Page", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Scrape Page": {
+      "main": [
+        [
+          { "node": "Extract Links", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Extract Links": {
+      "main": [
+        [
+          { "node": "Send to Backend", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}
